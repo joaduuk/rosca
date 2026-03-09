@@ -14,5 +14,9 @@ class User(Base):
     phone = Column(String)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    # Add to User model
+    preferred_language = Column(String(2), default="en")
+    preferred_currency = Column(String(3), default="USD")
+    timezone = Column(String, default="UTC")
     role = Column(Enum("admin", "member", name="user_roles"), default="member")
     created_at = Column(DateTime, default=datetime.utcnow)
