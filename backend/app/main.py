@@ -7,10 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.routers import auth, groups
-from app.routers import auth, groups, contributions  # Add contributions
-
-
-
+from app.routers import auth, groups, contributions, members  # Add contributions
 
 app = FastAPI(
     title="ROSCA Platform API",
@@ -31,6 +28,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(groups.router)
 app.include_router(contributions.router)  # Add this line
+app.include_router(members.router)  # Add this line
 
 @app.get("/")
 def root():

@@ -1,16 +1,21 @@
 # backend/app/models/group.py
-from sqlalchemy import Column, String, Integer, Numeric, ForeignKey, DateTime, Enum
+from sqlalchemy import Column, String, Integer, Numeric, ForeignKey, DateTime, Enum, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime
 from app.core.database import Base
 
+
 class Group(Base):
     __tablename__ = "groups"
-    
+    __table_args__ = (
+        UniqueConstraint('name', 'created_by', name='unique_group_per_user'),
+    )
+   
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String, nullable=False)
+    name = Column(String, unique=True, nullable=False)
+    #name = Column(String, nullable=False)
     description = Column(String)
     contribution_amount = Column(Numeric(10, 2), nullable=False)
     contribution_frequency = Column(Enum("daily", "weekly", "monthly", name="frequency"), nullable=False)
@@ -35,3 +40,5 @@ class Group(Base):
     memberships = relationship("Membership", back_populates="group")
     contributions = relationship("Contribution", back_populates="group")
     payout_schedules = relationship("PayoutSchedule", back_populates="group")
+    from sqlalchemy import UniqueConstraint
+
