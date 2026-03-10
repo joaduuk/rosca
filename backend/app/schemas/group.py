@@ -6,24 +6,24 @@ from typing import Optional
 from datetime import datetime
 from enum import Enum
 
-class GroupStatus(str, Enum):
-    active = "active"
-    completed = "completed"
-    paused = "paused"
+class RoscaType(str, Enum):
+    random = "random"
+    fixed = "fixed"
+    auction = "auction"
 
-class Frequency(str, Enum):
+class ContributionPeriod(str, Enum):
     daily = "daily"
     weekly = "weekly"
+    biweekly = "biweekly"
     monthly = "monthly"
 
 class GroupBase(BaseModel):
     name: str
     description: Optional[str] = None
     contribution_amount: float = Field(..., gt=0)
-    contribution_frequency: Frequency
-    member_count: int = Field(..., gt=1, le=50)
-    currency: str = "USD"
-    country_code: Optional[str] = None
+    contribution_period: ContributionPeriod  # Changed from contribution_frequency
+    member_count: int = Field(..., ge=2, le=50)
+    rosca_type: RoscaType  # Added this field
 
 class GroupCreate(GroupBase):
     pass
@@ -31,14 +31,23 @@ class GroupCreate(GroupBase):
 class GroupUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    status: Optional[GroupStatus] = None
+    contribution_amount: Optional[float] = Field(None, gt=0)
+    contribution_period: Optional[ContributionPeriod] = None
+    member_count: Optional[int] = Field(None, ge=2, le=50)
+    rosca_type: Optional[RoscaType] = None
+    is_active: Optional[bool] = None
 
 class GroupResponse(GroupBase):
     id: UUID4
-    current_cycle: int
-    status: GroupStatus
-    created_at: datetime
     created_by: UUID4
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    current_cycle: int = 0
+    total_cycles_completed: int = 0
+    next_payout_date: Optional[datetime] = None
+    total_collected: float = 0
+    total_paid_out: float = 0
+    is_active: bool = True
     
     class Config:
         from_attributes = True

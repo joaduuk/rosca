@@ -1,5 +1,5 @@
-# backend/app/models/payout.py
-from sqlalchemy import Column, Numeric, DateTime, ForeignKey, Enum, Integer, JSON
+# backend/app/models/payout_schedule.py
+from sqlalchemy import Column, Numeric, DateTime, ForeignKey, Enum, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -18,9 +18,6 @@ class PayoutSchedule(Base):
     status = Column(Enum("scheduled", "paid", "missed", name="payout_status"), default="scheduled")
     paid_date = Column(DateTime, nullable=True)
     
-    # Optional: store which contributions funded this payout
-    contribution_ids = Column(JSON, nullable=True)
-    
     # Relationships
     group = relationship("Group", back_populates="payout_schedules")
-    member = relationship("Membership")  # Removed back_populates
+    member = relationship("Membership")
