@@ -1,4 +1,4 @@
-# notepad C:\proof\rosca\backend\app\routers\contributions.py
+# C:\proof\rosca\backend\app\routers\contributions.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -26,7 +26,7 @@ def record_contribution(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Record a member's contribution"""
+    """Record a member's contribution and auto-process payout when cycle completes"""
     
     # Check if group exists
     group = db.query(Group).filter(Group.id == group_id).first()
@@ -54,25 +54,28 @@ def record_contribution(
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
     
+    # Determine current cycle (use provided or next available)
+    current_cycle = contribution_data.cycle_number or (group.current_cycle + 1)
+    
     # Check if already contributed this cycle
     existing = db.query(Contribution).filter(
         Contribution.group_id == group_id,
         Contribution.membership_id == contribution_data.membership_id,
-        Contribution.cycle_number == contribution_data.cycle_number,
+        Contribution.cycle_number == current_cycle,
         Contribution.status == "paid"
     ).first()
     
     if existing:
         raise HTTPException(
             status_code=400, 
-            detail=f"Member already contributed for cycle {contribution_data.cycle_number}"
+            detail=f"Member already contributed for cycle {current_cycle}"
         )
     
     # Create contribution
     contribution = Contribution(
         group_id=group_id,
         membership_id=contribution_data.membership_id,
-        cycle_number=contribution_data.cycle_number,
+        cycle_number=current_cycle,
         amount=contribution_data.amount,
         currency=contribution_data.currency,
         due_date=contribution_data.due_date,
@@ -94,22 +97,76 @@ def record_contribution(
     
     paid_this_cycle = db.query(Contribution).filter(
         Contribution.group_id == group_id,
-        Contribution.cycle_number == contribution_data.cycle_number,
+        Contribution.cycle_number == current_cycle,
         Contribution.status == "paid"
     ).count()
     
-    # If all paid, mark the payout schedule as ready
+    # If all paid, process the payout and advance the cycle
     if paid_this_cycle == total_members:
-        # Find the payout schedule for this cycle
+        # Get all active members ordered by payout order
+        members = db.query(Membership).filter(
+            Membership.group_id == group_id,
+            Membership.is_active == True
+        ).order_by(Membership.payout_order).all()
+        
+        # Determine recipient based on ROSCA type
+        if group.rosca_type == "fixed":
+            # Fixed order - cycle determines who gets paid
+            recipient_index = (current_cycle - 1) % len(members)
+            recipient = members[recipient_index]
+        else:
+            # Random or auction - use round-robin based on payout order
+            recipient_index = current_cycle % len(members)
+            recipient = members[recipient_index]
+        
+        # Calculate total pool
+        total_pool = float(group.contribution_amount * total_members)
+        
+        # Find or create payout schedule
         payout = db.query(PayoutSchedule).filter(
             PayoutSchedule.group_id == group_id,
-            PayoutSchedule.cycle_number == contribution_data.cycle_number
+            PayoutSchedule.cycle_number == current_cycle
         ).first()
         
         if payout:
+            # Update existing payout
             payout.status = "paid"
             payout.paid_date = datetime.utcnow()
-            db.commit()
+            payout.member_id = recipient.id
+        else:
+            # Create new payout
+            payout = PayoutSchedule(
+                group_id=group_id,
+                member_id=recipient.id,
+                cycle_number=current_cycle,
+                amount=total_pool,
+                payout_date=datetime.utcnow(),
+                status="paid",
+                paid_date=datetime.utcnow()
+            )
+            db.add(payout)
+        
+        # Update group stats
+        group.current_cycle = current_cycle
+        group.total_cycles_completed = (group.total_cycles_completed or 0) + 1
+        group.total_paid_out = (group.total_paid_out or 0) + total_pool
+        
+        # Calculate next payout date based on contribution period
+        if group.contribution_period == "daily":
+            group.next_payout_date = datetime.utcnow() + timedelta(days=1)
+        elif group.contribution_period == "weekly":
+            group.next_payout_date = datetime.utcnow() + timedelta(weeks=1)
+        elif group.contribution_period == "monthly":
+            group.next_payout_date = datetime.utcnow() + timedelta(days=30)
+        else:
+            group.next_payout_date = datetime.utcnow() + timedelta(days=7)
+        
+        db.commit()
+        
+        # Add payout info to response (for logging/debugging)
+        setattr(contribution, 'payout_processed', True)
+        setattr(contribution, 'payout_recipient_id', recipient.id)
+        setattr(contribution, 'payout_amount', total_pool)
     
     return contribution
 
@@ -375,4 +432,86 @@ def get_contribution_summary(
         "balance": float(total_collected - total_paid_out),
         "contributions_by_currency": contributions_by_currency,
         "next_payout_date": group.next_payout_date
+    }
+
+@router.post("/process-payout/{cycle_number}")
+def process_payout(
+    group_id: UUID,
+    cycle_number: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Manually process payout for a cycle (admin only)"""
+    
+    # Check admin permission
+    is_group_admin = db.query(Membership).filter(
+        Membership.group_id == group_id,
+        Membership.user_id == current_user.id,
+        Membership.is_admin == True,
+        Membership.is_active == True
+    ).first()
+    
+    if not is_group_admin and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can process payouts")
+    
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    # Get all active members
+    members = db.query(Membership).filter(
+        Membership.group_id == group_id,
+        Membership.is_active == True
+    ).order_by(Membership.payout_order).all()
+    
+    if not members:
+        raise HTTPException(status_code=404, detail="No members in group")
+    
+    # Determine recipient
+    if group.rosca_type == "fixed":
+        recipient_index = (cycle_number - 1) % len(members)
+    else:
+        recipient_index = cycle_number % len(members)
+    
+    recipient = members[recipient_index]
+    recipient_user = db.query(User).filter(User.id == recipient.user_id).first()
+    
+    # Calculate total pool
+    total_pool = float(group.contribution_amount * len(members))
+    
+    # Create or update payout
+    payout = db.query(PayoutSchedule).filter(
+        PayoutSchedule.group_id == group_id,
+        PayoutSchedule.cycle_number == cycle_number
+    ).first()
+    
+    if payout:
+        payout.status = "paid"
+        payout.paid_date = datetime.utcnow()
+        payout.member_id = recipient.id
+    else:
+        payout = PayoutSchedule(
+            group_id=group_id,
+            member_id=recipient.id,
+            cycle_number=cycle_number,
+            amount=total_pool,
+            payout_date=datetime.utcnow(),
+            status="paid",
+            paid_date=datetime.utcnow()
+        )
+        db.add(payout)
+    
+    # Update group stats
+    group.current_cycle = cycle_number
+    group.total_cycles_completed = (group.total_cycles_completed or 0) + 1
+    group.total_paid_out = (group.total_paid_out or 0) + total_pool
+    
+    db.commit()
+    
+    return {
+        "message": f"Payout for cycle {cycle_number} processed successfully",
+        "recipient": recipient_user.full_name if recipient_user else "Unknown",
+        "amount": total_pool,
+        "recipient_id": recipient.id,
+        "cycle": cycle_number
     }
