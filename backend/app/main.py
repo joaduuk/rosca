@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # from app.routers import auth, groups
-from app.routers import auth, groups, contributions, members, users  # Add contributions
+from app.routers import auth, groups, contributions, members, users, admin  # Add contributions
 
 
 
