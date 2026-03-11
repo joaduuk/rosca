@@ -21,12 +21,13 @@ class GroupBase(BaseModel):
     name: str
     description: Optional[str] = None
     contribution_amount: float = Field(..., gt=0)
-    contribution_period: ContributionPeriod  # Changed from contribution_frequency
+    contribution_period: ContributionPeriod
     member_count: int = Field(..., ge=2, le=50)
-    rosca_type: RoscaType  # Added this field
+    rosca_type: RoscaType
+    currency: str  # REQUIRED - admin must choose this at creation
 
 class GroupCreate(GroupBase):
-    pass
+    pass  # Inherits all fields as required
 
 class GroupUpdate(BaseModel):
     name: Optional[str] = None
@@ -35,6 +36,7 @@ class GroupUpdate(BaseModel):
     contribution_period: Optional[ContributionPeriod] = None
     member_count: Optional[int] = Field(None, ge=2, le=50)
     rosca_type: Optional[RoscaType] = None
+    currency: Optional[str] = None  # Optional for updates
     is_active: Optional[bool] = None
 
 class GroupResponse(GroupBase):

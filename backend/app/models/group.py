@@ -18,6 +18,7 @@ class Group(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    currency = Column(String, nullable=False, default="USD")
     
     # Add these new fields for cycle tracking
     current_cycle = Column(Integer, default=0)
