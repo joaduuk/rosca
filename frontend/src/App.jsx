@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';  // Make sure this imports the full Dashboard
+import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import MemberDashboard from './pages/MemberDashboard';
 
 function App() {
   return (
@@ -8,6 +10,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/my-groups" element={<MemberDashboard />} />
       </Routes>
     </BrowserRouter>
   );
