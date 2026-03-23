@@ -1,4 +1,3 @@
-
 # C:\proof\rosca\backend\app\routers\auth.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -21,12 +20,13 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create new user
+    # Create new user with default role (GROUP_MEMBER)
     new_user = User(
         email=user_data.email,
         full_name=user_data.full_name,
         phone=user_data.phone,
-        hashed_password=get_password_hash(user_data.password)
+        hashed_password=get_password_hash(user_data.password),
+        role="group_member"  # Set default role for new users
     )
     db.add(new_user)
     db.commit()
@@ -41,7 +41,24 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # Create token
-    access_token = create_access_token(data={"sub": str(user.id)})
+    # Check if user is active
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Account is disabled")
     
-    return TokenResponse(access_token=access_token, user=user)
+    # Create token with role included
+    access_token = create_access_token(
+        data={
+            "sub": str(user.id),
+            "email": user.email,
+            "role": user.role  # Include role in token
+        }
+    )
+    
+    # Return token with user info
+    return TokenResponse(
+        access_token=access_token,
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role  # Send role to frontend
+    )

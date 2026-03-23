@@ -1,6 +1,6 @@
 # C:\proof\rosca\backend\app\routers\contributions.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Path
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from typing import List, Optional
@@ -10,7 +10,8 @@ import json
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.user import User
+from app.api.dependencies.auth import require_any_user, require_group_admin, check_group_member, check_group_admin_or_super_admin
+from app.models.user import User, UserRole
 from app.models.group import Group
 from app.models.membership import Membership
 from app.models.contribution import Contribution
@@ -19,30 +20,51 @@ from app.schemas.contribution import ContributionCreate, ContributionResponse, C
 
 router = APIRouter(prefix="/groups/{group_id}", tags=["Contributions"])
 
+# ✅ CORRECT WAY: Define a dependency function that takes group_id
+# def verify_group_member(
+#     group_id: UUID = Path(...),
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     """Dependency to verify user is a member of the group"""
+#     return check_group_member(group_id, current_user, db)
+
+# def verify_group_admin(
+#     group_id: UUID = Path(...),
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     """Dependency to verify user is a group admin or super admin"""
+#     return check_group_admin_or_super_admin(group_id, current_user, db)
+def verify_group_member(
+    group_id: UUID = Path(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return check_group_member(group_id, current_user, db)
+
+def verify_group_admin(
+    group_id: UUID = Path(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return check_group_admin_or_super_admin(group_id, current_user, db)
+
 @router.post("/contributions", response_model=ContributionResponse)
 def record_contribution(
     group_id: UUID,
     contribution_data: ContributionCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_any_user),
+    # ✅ FIX: Use the custom dependency function
+    _: bool = Depends(verify_group_admin)
 ):
-    """Record a member's contribution and auto-process payout when cycle completes"""
+    """Record a member's contribution - Only group admins or super admin"""
     
     # Check if group exists
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    
-    # Check permission (admin or group admin)
-    is_group_admin = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_admin == True,
-        Membership.is_active == True
-    ).first()
-    
-    if not is_group_admin and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can record contributions")
     
     # Verify the member exists
     member = db.query(Membership).filter(
@@ -176,19 +198,11 @@ def list_contributions(
     cycle_number: Optional[int] = None,
     member_id: Optional[UUID] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    # ✅ FIX: Use the custom dependency function
+    _: bool = Depends(verify_group_member)
 ):
-    """List contributions for a group"""
-    
-    # Check if user is a member
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_active == True
-    ).first()
-    
-    if not membership and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
+    """List contributions for a group - Any group member can view"""
     
     query = db.query(Contribution).filter(Contribution.group_id == group_id)
     
@@ -220,23 +234,15 @@ def get_cycle_status(
     group_id: UUID,
     cycle_number: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    # ✅ FIX: Use the custom dependency function
+    _: bool = Depends(verify_group_member)
 ):
-    """Get payment status for a specific cycle"""
+    """Get payment status for a specific cycle - Any group member can view"""
     
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    
-    # Check if user is a member
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_active == True
-    ).first()
-    
-    if not membership and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
     
     # Get all members
     members = db.query(Membership).filter(
@@ -315,19 +321,11 @@ def get_cycle_status(
 def get_payout_schedule(
     group_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    # ✅ FIX: Use the custom dependency function
+    _: bool = Depends(verify_group_member)
 ):
-    """Get all payout schedules for a group"""
-    
-    # Check if user is a member
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_active == True
-    ).first()
-    
-    if not membership and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
+    """Get all payout schedules for a group - Any group member can view"""
     
     schedules = db.query(PayoutSchedule).filter(
         PayoutSchedule.group_id == group_id
@@ -365,23 +363,15 @@ def get_payout_schedule(
 def get_contribution_summary(
     group_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    # ✅ FIX: Use the custom dependency function
+    _: bool = Depends(verify_group_member)
 ):
-    """Get contribution summary statistics"""
+    """Get contribution summary statistics - Any group member can view"""
     
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
-    
-    # Check if user is a member
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_active == True
-    ).first()
-    
-    if not membership and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
     
     # Get all members
     members = db.query(Membership).filter(
@@ -439,20 +429,11 @@ def process_payout(
     group_id: UUID,
     cycle_number: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_any_user),
+    # ✅ FIX: Use the custom dependency function
+    _: bool = Depends(verify_group_admin)
 ):
-    """Manually process payout for a cycle (admin only)"""
-    
-    # Check admin permission
-    is_group_admin = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_admin == True,
-        Membership.is_active == True
-    ).first()
-    
-    if not is_group_admin and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can process payouts")
+    """Manually process payout for a cycle - Only group admins or super admin"""
     
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:

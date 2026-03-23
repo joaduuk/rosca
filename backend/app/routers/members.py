@@ -15,7 +15,12 @@ from app.schemas.membership import MembershipCreate, MembershipResponse, Members
 
 router = APIRouter(prefix="/groups", tags=["Members"])
 
-@router.post("/{group_id}/members/{user_id}", response_model=MembershipResponse)
+
+@router.post(
+    "/{group_id}/members/{user_id}",
+    response_model=MembershipResponse,
+    operation_id="add_member_to_group"
+)
 def add_member_to_group(
     group_id: UUID,
     user_id: UUID,
@@ -68,7 +73,7 @@ def add_member_to_group(
         user_id=user_id,
         group_id=group_id,
         is_admin=is_admin,
-        payout_order=current_members + 1  # Simple sequential order
+        payout_order=current_members + 1
     )
     
     db.add(new_member)
@@ -77,19 +82,22 @@ def add_member_to_group(
     
     return new_member
 
-@router.get("/{group_id}/members", response_model=List[MembershipResponse])
+
+@router.get(
+    "/{group_id}/members",
+    response_model=List[MembershipResponse],
+    operation_id="list_group_members"
+)
 def list_group_members(
     group_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """List all members in a group with their details"""
-    # Check if group exists
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    # Check if user is a member (for privacy)
     is_member = db.query(Membership).filter(
         Membership.group_id == group_id,
         Membership.user_id == current_user.id
@@ -98,13 +106,11 @@ def list_group_members(
     if not is_member and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not a member of this group")
     
-    # Get all members with user details
     members = db.query(Membership).filter(
         Membership.group_id == group_id,
         Membership.is_active == True
     ).all()
     
-    # Enhance with user details
     result = []
     for member in members:
         user = db.query(User).filter(User.id == member.user_id).first()
@@ -130,7 +136,11 @@ def list_group_members(
     
     return result
 
-@router.delete("/{group_id}/members/{user_id}")
+
+@router.delete(
+    "/{group_id}/members/{user_id}",
+    operation_id="remove_member_from_group"
+)
 def remove_member_from_group(
     group_id: UUID,
     user_id: UUID,
@@ -147,7 +157,6 @@ def remove_member_from_group(
     if not membership:
         raise HTTPException(status_code=404, detail="Membership not found")
     
-    # Check permission
     is_creator = db.query(Group).filter(
         Group.id == group_id,
         Group.created_by == current_user.id
@@ -162,13 +171,17 @@ def remove_member_from_group(
     if not (is_creator or is_group_admin or current_user.role == "admin" or str(current_user.id) == str(user_id)):
         raise HTTPException(status_code=403, detail="Not authorized to remove members")
     
-    # Soft delete
     membership.is_active = False
     db.commit()
     
     return {"message": "Member removed successfully"}
 
-@router.put("/members/{membership_id}/guarantor", response_model=MembershipResponse)
+
+@router.put(
+    "/members/{membership_id}/guarantor",
+    response_model=MembershipResponse,
+    operation_id="set_guarantor_for_member"
+)
 def set_guarantor(
     membership_id: UUID,
     guarantor_id: UUID,
@@ -184,7 +197,6 @@ def set_guarantor(
     if not membership:
         raise HTTPException(status_code=404, detail="Membership not found")
     
-    # Check if guarantor exists and is in the same group
     guarantor = db.query(Membership).filter(
         Membership.user_id == guarantor_id,
         Membership.group_id == membership.group_id,
@@ -194,7 +206,6 @@ def set_guarantor(
     if not guarantor:
         raise HTTPException(status_code=404, detail="Guarantor not found in this group")
     
-    # Check permission (member themselves or admin)
     if membership.user_id != current_user.id:
         is_admin = db.query(Membership).filter(
             Membership.group_id == membership.group_id,

@@ -1,5 +1,6 @@
-# code C:\proof\rosca\backend\app\routers\admin.py
-from fastapi import APIRouter, Depends, HTTPException, status
+# C:\proof\rosca\backend\app\routers\admin.py
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from typing import List, Optional
@@ -7,30 +8,23 @@ from uuid import UUID
 from datetime import datetime, timedelta
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.api.dependencies.auth import require_super_admin, get_current_user  # Updated import
 from app.models.user import User
 from app.models.group import Group
 from app.models.membership import Membership
 from app.models.contribution import Contribution
 from app.models.payout import PayoutSchedule
-from app.schemas.user import UserResponse
+from app.schemas.user import UserResponse, UserRole  # Import UserRole enum
 from app.schemas.group import GroupResponse
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-# Dependency to check if user is platform admin
-def is_platform_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Platform admin access required"
-        )
-    return current_user
+# We can remove the is_platform_admin function since we'll use require_super_admin directly
 
 @router.get("/stats")
 def get_platform_stats(
     db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
+    admin: User = Depends(require_super_admin)  # Using the new dependency
 ):
     """Get platform-wide statistics for admin dashboard"""
     
@@ -64,6 +58,11 @@ def get_platform_stats(
         Contribution.created_at >= datetime.utcnow() - timedelta(days=7)
     ).count()
     
+    # Users by role
+    users_by_role = db.query(
+        User.role, func.count(User.id)
+    ).group_by(User.role).all()
+    
     return {
         "total_users": total_users,
         "total_groups": total_groups,
@@ -74,18 +73,22 @@ def get_platform_stats(
         "active_groups_today": active_groups_today,
         "active_users_today": active_users_today,
         "recent_contributions_7d": recent_contributions,
+        "users_by_role": [
+            {"role": role, "count": count} 
+            for role, count in users_by_role
+        ],
         "timestamp": datetime.utcnow().isoformat()
     }
 
 @router.get("/users", response_model=List[UserResponse])
 def list_all_users(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     search: Optional[str] = None,
-    role: Optional[str] = None,
+    role: Optional[UserRole] = None,  # Using enum instead of str
     is_active: Optional[bool] = None,
     db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
+    admin: User = Depends(require_super_admin)  # Updated
 ):
     """List all users with filtering options"""
     
@@ -104,14 +107,16 @@ def list_all_users(
     if is_active is not None:
         query = query.filter(User.is_active == is_active)
     
+    total = query.count()
     users = query.offset(skip).limit(limit).all()
+    
     return users
 
 @router.get("/users/{user_id}", response_model=UserResponse)
 def get_user_detail(
     user_id: UUID,
     db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
+    admin: User = Depends(require_super_admin)  # Updated
 ):
     """Get detailed information about a specific user"""
     
@@ -154,11 +159,40 @@ def get_user_detail(
     
     return user_dict
 
+@router.put("/users/{user_id}/role")
+def update_user_role(
+    user_id: UUID,
+    new_role: UserRole,  # Using enum instead of str
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_super_admin)  # Updated
+):
+    """Update a user's role"""
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent super admin from changing their own role
+    if user.id == admin.id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot change your own role"
+        )
+    
+    user.role = new_role
+    db.commit()
+    
+    return {
+        "message": f"User {user.email} role updated to {new_role.value}",
+        "user_id": str(user_id),
+        "new_role": new_role.value
+    }
+
 @router.put("/users/{user_id}/suspend")
 def suspend_user(
     user_id: UUID,
     db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
+    admin: User = Depends(require_super_admin)  # Updated
 ):
     """Suspend a user account"""
     
@@ -178,7 +212,7 @@ def suspend_user(
 def activate_user(
     user_id: UUID,
     db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
+    admin: User = Depends(require_super_admin)  # Updated
 ):
     """Activate a suspended user account"""
     
@@ -191,38 +225,14 @@ def activate_user(
     
     return {"message": f"User {user.email} has been activated"}
 
-@router.put("/users/{user_id}/role")
-def update_user_role(
-    user_id: UUID,
-    role: str,
-    db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
-):
-    """Update a user's role (member, group_admin, admin)"""
-    
-    if role not in ["member", "group_admin", "admin"]:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be 'member', 'group_admin', or 'admin'")
-    
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    if user.id == admin.id and role != "admin":
-        raise HTTPException(status_code=400, detail="Cannot change your own admin role")
-    
-    user.role = role
-    db.commit()
-    
-    return {"message": f"User {user.email} role updated to {role}"}
-
 @router.get("/groups", response_model=List[GroupResponse])
 def list_all_groups(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     search: Optional[str] = None,
     is_active: Optional[bool] = None,
     db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
+    admin: User = Depends(require_super_admin)  # Updated
 ):
     """List all groups with filtering options"""
     
@@ -271,7 +281,7 @@ def list_all_groups(
 def get_group_detail_admin(
     group_id: UUID,
     db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
+    admin: User = Depends(require_super_admin)  # Updated
 ):
     """Get detailed information about a specific group (admin view)"""
     
@@ -327,9 +337,9 @@ def get_group_detail_admin(
 
 @router.get("/recent-activity")
 def get_recent_activity(
-    days: int = 7,
+    days: int = Query(7, ge=1, le=30),
     db: Session = Depends(get_db),
-    admin: User = Depends(is_platform_admin)
+    admin: User = Depends(require_super_admin)  # Updated
 ):
     """Get recent platform activity"""
     
