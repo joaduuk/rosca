@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import API from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -9,6 +10,8 @@ function Login() {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const { login } = useAuth(); // Use auth context
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,16 +27,26 @@ function Login() {
       const response = await API.post('/auth/login', formData);
       
       console.log('Login response:', response.data);
-      console.log('Login successful, token:', response.data.access_token);
+      console.log('User role:', response.data.role);
       
-      localStorage.setItem('token', response.data.access_token);
+      // Store token in localStorage via auth context
+      login(response.data.access_token, {
+        id: response.data.user_id,
+        email: response.data.email,
+        fullName: response.data.full_name,
+        role: response.data.role
+      });
       
-      // Verify token was stored
-      const storedToken = localStorage.getItem('token');
-      console.log('Token stored in localStorage:', storedToken ? 'Yes' : 'No');
+      console.log('Redirecting based on role...');
       
-      console.log('Redirecting to dashboard...');
-      window.location.href = '/dashboard';
+      // Redirect based on role
+      if (response.data.role === 'super_admin') {
+        window.location.href = '/admin';
+      } else if (response.data.role === 'group_admin') {
+        window.location.href = '/dashboard';
+      } else {
+        window.location.href = '/dashboard';
+      }
     } catch (error) {
       console.error('Login error:', error);
       console.error('Error response:', error.response?.data);
@@ -62,6 +75,8 @@ function Login() {
       setIsRegistering(false);
       setEmail('');
       setPassword('');
+      setFullName('');
+      setPhone('');
     } catch (error) {
       console.error('Registration error:', error);
       console.error('Error response:', error.response?.data);
