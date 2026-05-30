@@ -188,6 +188,18 @@ export default function Dashboard() {
     }
   };
 
+  // Is the logged-in user an admin of the selected group?
+  const isCurrentUserAdmin = members.some(m => m.user_id === user?.id && m.is_admin);
+
+  const handleReorder = async (userId, direction) => {
+    try {
+      await API.put(`/groups/${selectedGroup.id}/members/${userId}/reorder?direction=${direction}`);
+      await fetchMembers(selectedGroup.id);
+    } catch (err) {
+      alert('Failed to reorder: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
   const openPaymentModal = (member) => {
     setSelectedMember(member);
     setPaymentData({ ...EMPTY_PAYMENT, amount: selectedGroup?.contribution_amount || 0 });
@@ -505,7 +517,14 @@ export default function Dashboard() {
               {/* ── TAB: MEMBERS ── */}
               {activeTab === 'members' && (
                 <div style={styles.card}>
-                  <h3 style={styles.sectionTitle}>Members ({members.length})</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ ...styles.sectionTitle, marginBottom: 0 }}>Members ({members.length})</h3>
+                    {isCurrentUserAdmin && (
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                        ↑↓ Use arrows to reorder payout sequence
+                      </span>
+                    )}
+                  </div>
                   {members.length === 0 ? (
                     <p style={styles.emptyMsg}>No members yet. Click "Add Member" above.</p>
                   ) : (
@@ -513,21 +532,41 @@ export default function Dashboard() {
                       <table style={styles.table}>
                         <thead>
                           <tr style={styles.thead}>
+                            <th style={styles.th}>Payout Order</th>
                             <th style={styles.th}>Name</th>
                             <th style={styles.th}>Email</th>
                             <th style={styles.th}>Joined</th>
-                            <th style={styles.th}>Order</th>
                             <th style={styles.th}>Role</th>
-                            <th style={styles.th}>Action</th>
+                            <th style={styles.th}>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {members.map(m => (
+                          {[...members].sort((a, b) => (a.payout_order || 0) - (b.payout_order || 0)).map((m, index, sorted) => (
                             <tr key={m.id} style={styles.tr}>
+                              <td style={styles.td}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={styles.orderBadge}>#{m.payout_order || '—'}</span>
+                                  {isCurrentUserAdmin && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                      <button
+                                        onClick={() => handleReorder(m.user_id, 'up')}
+                                        disabled={index === 0}
+                                        style={{ ...styles.arrowBtn, opacity: index === 0 ? 0.3 : 1 }}
+                                        title="Move up"
+                                      >▲</button>
+                                      <button
+                                        onClick={() => handleReorder(m.user_id, 'down')}
+                                        disabled={index === sorted.length - 1}
+                                        style={{ ...styles.arrowBtn, opacity: index === sorted.length - 1 ? 0.3 : 1 }}
+                                        title="Move down"
+                                      >▼</button>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
                               <td style={styles.td}>{m.user_name || m.name}</td>
                               <td style={styles.td}>{m.user_email || m.email}</td>
                               <td style={styles.td}>{formatDate(m.joined_at)}</td>
-                              <td style={styles.td}>#{m.payout_order || '—'}</td>
                               <td style={styles.td}>
                                 <span style={{ ...styles.pill, background: m.is_admin ? '#ede9fe' : '#f0fdf4', color: m.is_admin ? '#5b21b6' : '#166534' }}>
                                   {m.is_admin ? 'Admin' : 'Member'}
@@ -866,6 +905,8 @@ const styles = {
   pill: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' },
   recordBtn: { padding: '0.25rem 0.75rem', background: '#667eea', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600' },
   removeBtn: { padding: '0.25rem 0.75rem', background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600' },
+  arrowBtn: { padding: '0 5px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '3px', cursor: 'pointer', fontSize: '0.6rem', lineHeight: '1.4', color: '#475569', fontWeight: '700' },
+  orderBadge: { display: 'inline-block', minWidth: '28px', textAlign: 'center', background: '#667eea', color: 'white', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '700', padding: '0.1rem 0.4rem' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' },
   modal: { background: 'white', borderRadius: '12px', padding: '2rem', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto' },
   modalTitle: { fontSize: '1.15rem', fontWeight: '700', color: '#0f172a', marginBottom: '1.5rem' },

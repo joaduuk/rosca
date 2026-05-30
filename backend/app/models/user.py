@@ -10,13 +10,13 @@ import enum
 
 
 class UserRole(str, enum.Enum):
-    SUPER_ADMIN = "super_admin"      # Platform owner/staff
-    USER = "user"                    # Base user (can belong to groups)
+    SUPER_ADMIN = "super_admin"
+    USER = "user"
 
 
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=False)
@@ -37,9 +37,13 @@ class User(Base):
         nullable=False
     )
 
+    # Password reset fields
+    reset_token = Column(String, nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     memberships = relationship(
         "Membership",
