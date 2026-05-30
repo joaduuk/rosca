@@ -1,12 +1,11 @@
-// frontend/src/App.jsx (with Navigation)
+// frontend/src/App.jsx (Simplified - remove MemberDashboard if not needed)
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { Navigation } from './components/Navigation'; // Add this import
+import { Navigation } from './components/Navigation';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import MemberDashboard from './pages/MemberDashboard';
 import AdminUsers from './pages/AdminUsers';
 import CreateGroup from './pages/CreateGroup';
 import GroupReports from './pages/GroupReports';
@@ -19,39 +18,31 @@ function AppContent() {
         {/* Public route */}
         <Route path="/" element={<Login />} />
         
-        {/* Protected routes for all authenticated users */}
+        {/* Dashboard for all authenticated users */}
         <Route 
           path="/dashboard" 
           element={
-            <ProtectedRoute allowedRoles={['group_member', 'group_admin', 'super_admin']}>
+            <ProtectedRoute allowedRoles={['user', 'super_admin']}>
               <Dashboard />
             </ProtectedRoute>
           } 
         />
         
-        <Route 
-          path="/my-groups" 
-          element={
-            <ProtectedRoute allowedRoles={['group_member', 'group_admin', 'super_admin']}>
-              <MemberDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Group Admin specific routes */}
+        {/* Create Group - available to all users */}
         <Route 
           path="/groups/create" 
           element={
-            <ProtectedRoute allowedRoles={['group_admin', 'super_admin']}>
+            <ProtectedRoute allowedRoles={['user', 'super_admin']}>
               <CreateGroup />
             </ProtectedRoute>
           } 
         />
         
+        {/* Reports - available to all users */}
         <Route 
           path="/reports" 
           element={
-            <ProtectedRoute allowedRoles={['group_admin', 'super_admin']}>
+            <ProtectedRoute allowedRoles={['user', 'super_admin']}>
               <GroupReports />
             </ProtectedRoute>
           } 
@@ -76,8 +67,8 @@ function AppContent() {
           } 
         />
         
-        {/* Catch all - redirect to login */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Catch all - redirect to dashboard if logged in, else login */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </>
   );

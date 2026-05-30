@@ -34,7 +34,7 @@ def get_current_user(
 
 
 class RoleChecker:
-    """Dependency to check if user has required roles"""
+    """Dependency to check if user has required platform-level roles"""
     def __init__(self, allowed_roles: List[UserRole]):
         self.allowed_roles = allowed_roles
 
@@ -48,11 +48,10 @@ class RoleChecker:
 
 
 # -----------------------------
-# Role-based dependencies
+# Platform-level role dependencies
 # -----------------------------
 require_super_admin = RoleChecker([UserRole.SUPER_ADMIN])
-require_group_admin = RoleChecker([UserRole.GROUP_ADMIN, UserRole.SUPER_ADMIN])
-require_any_user = RoleChecker([UserRole.GROUP_MEMBER, UserRole.GROUP_ADMIN, UserRole.SUPER_ADMIN])
+require_authenticated_user = RoleChecker([UserRole.USER, UserRole.SUPER_ADMIN])
 
 
 # -----------------------------
@@ -71,15 +70,16 @@ def check_group_admin_or_super_admin(
     if current_user.role == UserRole.SUPER_ADMIN:
         return True
 
-    # Check if user is the group owner
+    # Check if user is the group creator
     group = db.query(Group).filter(Group.id == group_id).first()
     if group and group.created_by == current_user.id:
         return True
 
-    # Check if user is a group admin
+    # Check if user is a group admin via membership
     membership = db.query(Membership).filter(
         Membership.group_id == group_id,
         Membership.user_id == current_user.id,
+        Membership.is_active == True,
         Membership.is_admin == True
     ).first()
 
@@ -103,10 +103,34 @@ def check_group_member(
 
     membership = db.query(Membership).filter(
         Membership.group_id == group_id,
-        Membership.user_id == current_user.id
+        Membership.user_id == current_user.id,
+        Membership.is_active == True
     ).first()
 
     if not membership:
         raise HTTPException(status_code=403, detail="You are not a member of this group")
 
     return True
+
+
+def get_group_role(
+    group_id: UUID4,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> str:
+    """Get user's role in a group ('admin', 'member', or None)"""
+    from app.models.membership import Membership
+
+    if current_user.role == UserRole.SUPER_ADMIN:
+        return "admin"
+
+    membership = db.query(Membership).filter(
+        Membership.group_id == group_id,
+        Membership.user_id == current_user.id,
+        Membership.is_active == True
+    ).first()
+
+    if not membership:
+        return None
+
+    return "admin" if membership.is_admin else "member"

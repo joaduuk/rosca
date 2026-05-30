@@ -10,11 +10,13 @@ from app.core.database import get_db
 from app.core.security import create_access_token, verify_password, get_password_hash
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, TokenResponse
-
+from app.models.user import UserRole
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=UserResponse)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    print(f"DEBUG: UserRole.USER = {UserRole.USER}")  # Add this
+    print(f"DEBUG: type = {type(UserRole.USER)}")     # Add this
     # Check if user exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -26,7 +28,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         full_name=user_data.full_name,
         phone=user_data.phone,
         hashed_password=get_password_hash(user_data.password),
-        role="group_member"  # Set default role for new users
+        role=UserRole.USER.value  # Set default role for new users
     )
     db.add(new_user)
     db.commit()

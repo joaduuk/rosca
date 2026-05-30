@@ -1,15 +1,18 @@
 # app/models/user.py
-from sqlalchemy import Column, String, Boolean, DateTime, Enum
+from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from sqlalchemy import Enum as SqlEnum
 import uuid
 from datetime import datetime
 from app.core.database import Base
 import enum
 
+
 class UserRole(str, enum.Enum):
     SUPER_ADMIN = "super_admin"      # Platform owner/staff
-    GROUP_ADMIN = "group_admin"       # Group creators/managers
-    GROUP_MEMBER = "group_member"     # Regular members
+    USER = "user"                    # Base user (can belong to groups)
+
 
 class User(Base):
     __tablename__ = "users"
@@ -23,6 +26,23 @@ class User(Base):
     preferred_language = Column(String(2), default="en")
     preferred_currency = Column(String(3), default="USD")
     timezone = Column(String, default="UTC")
-    role = Column(Enum(UserRole), default=UserRole.GROUP_MEMBER)  # Updated
+
+    role = Column(
+        SqlEnum(
+            UserRole,
+            name="userrole",
+            values_callable=lambda enum: [e.value for e in enum]
+        ),
+        default=UserRole.USER.value,
+        nullable=False
+    )
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    memberships = relationship(
+        "Membership",
+        back_populates="user",
+        foreign_keys="Membership.user_id"
+    )

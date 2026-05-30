@@ -5,10 +5,9 @@ from typing import List
 from uuid import UUID
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.auth import (
-    require_group_admin,
-    require_any_user,
+    require_authenticated_user,
     check_group_admin_or_super_admin,
     check_group_member,
 )
@@ -19,15 +18,12 @@ from app.schemas.group import GroupCreate, GroupResponse, GroupUpdate
 
 router = APIRouter(prefix="/groups", tags=["Groups"])
 
-# -----------------------------
-# WRAPPER DEPENDENCIES
-# -----------------------------
+
 def group_member_dependency(
     group_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Ensure current user is a member of the group"""
     return check_group_member(group_id, current_user, db)
 
 
@@ -36,18 +32,14 @@ def group_admin_dependency(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Ensure current user is admin or super admin of the group"""
     return check_group_admin_or_super_admin(group_id, current_user, db)
 
 
-# -----------------------------
-# GROUP CRUD ENDPOINTS
-# -----------------------------
 @router.post("/", response_model=GroupResponse)
 def create_group(
     group_data: GroupCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_group_admin)  # GROUP_ADMIN or SUPER_ADMIN
+    current_user: User = Depends(get_current_user)
 ):
     """Create a new group and add creator as admin member"""
     existing_group = db.query(Group).filter(
@@ -59,7 +51,7 @@ def create_group(
 
     new_group = Group(**group_data.dict(), created_by=current_user.id)
     db.add(new_group)
-    db.flush()  # get ID before commit
+    db.flush()
 
     creator_membership = Membership(
         user_id=current_user.id,
@@ -79,7 +71,7 @@ def list_groups(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_user)
+    current_user: User = Depends(require_authenticated_user)
 ):
     """List all groups where the current user is a member"""
     groups = db.query(Group).join(Membership).filter(
@@ -139,103 +131,3 @@ def delete_group(
     group.is_active = False
     db.commit()
     return {"message": "Group deactivated successfully"}
-
-
-# -----------------------------
-# GROUP MEMBER MANAGEMENT
-# -----------------------------
-@router.post("/{group_id}/members/{user_id}")
-def add_member_to_group(
-    group_id: UUID,
-    user_id: UUID,
-    is_admin: bool = False,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _: bool = Depends(group_admin_dependency)
-):
-    """Add a member to the group - Only admins or super admin"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    existing = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == user_id
-    ).first()
-
-    if existing:
-        if existing.is_active:
-            raise HTTPException(status_code=400, detail="User is already a member")
-        else:
-            existing.is_active = True
-            existing.is_admin = is_admin
-            db.commit()
-            return {"message": "Member reactivated successfully"}
-
-    max_order = db.query(Membership).filter(Membership.group_id == group_id).count()
-    membership = Membership(
-        user_id=user_id,
-        group_id=group_id,
-        is_admin=is_admin,
-        is_active=True,
-        payout_order=max_order + 1
-    )
-    db.add(membership)
-    db.commit()
-    return {"message": "Member added successfully"}
-
-
-@router.delete("/{group_id}/members/{user_id}")
-def remove_member_from_group(
-    group_id: UUID,
-    user_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _: bool = Depends(group_admin_dependency)
-):
-    """Remove a member from the group - Only admins or super admin"""
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == user_id,
-        Membership.is_active == True
-    ).first()
-
-    if not membership:
-        raise HTTPException(status_code=404, detail="Membership not found")
-
-    if membership.is_admin:
-        admin_count = db.query(Membership).filter(
-            Membership.group_id == group_id,
-            Membership.is_admin == True,
-            Membership.is_active == True
-        ).count()
-        if admin_count <= 1:
-            raise HTTPException(status_code=400, detail="Cannot remove the last admin. Promote another member first.")
-
-    membership.is_active = False
-    db.commit()
-    return {"message": "Member removed successfully"}
-
-
-@router.put("/{group_id}/members/{user_id}/toggle-admin")
-def toggle_member_admin(
-    group_id: UUID,
-    user_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    _: bool = Depends(group_admin_dependency)
-):
-    """Toggle admin privileges for a member - Only admins or super admin"""
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == user_id,
-        Membership.is_active == True
-    ).first()
-
-    if not membership:
-        raise HTTPException(status_code=404, detail="Membership not found")
-
-    membership.is_admin = not membership.is_admin
-    db.commit()
-    status = "granted" if membership.is_admin else "revoked"
-    return {"message": f"Admin privileges {status} successfully"}

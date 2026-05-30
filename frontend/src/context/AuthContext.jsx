@@ -53,8 +53,8 @@ export function AuthProvider({ children }) {
     logout,
     hasRole,
     isSuperAdmin: user?.role === 'super_admin',
-    isGroupAdmin: user?.role === 'group_admin' || user?.role === 'super_admin',
-    isMember: user?.role === 'group_member'
+    isUser: user?.role === 'user',  // Changed from isGroupAdmin/isMember
+    isAuthenticated: !!user
   };
 
   return (

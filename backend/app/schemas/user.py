@@ -5,9 +5,9 @@ from datetime import datetime
 from enum import Enum
 
 class UserRole(str, Enum):
+    """Platform-level roles only"""
     SUPER_ADMIN = "super_admin"      # Platform owner/staff
-    GROUP_ADMIN = "group_admin"       # Group creators/managers
-    GROUP_MEMBER = "group_member"     # Regular members
+    USER = "user"                     # Base user (can belong to groups)
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -29,7 +29,7 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase):
     id: UUID4
     is_active: bool
-    role: UserRole  # Changed from str to UserRole enum
+    role: UserRole
     created_at: datetime
     updated_at: Optional[datetime] = None
     
@@ -44,10 +44,10 @@ class TokenResponse(BaseModel):
     """Schema for JWT token response"""
     access_token: str
     token_type: str = "bearer"
-    user_id: UUID4  # Made required, not Optional
-    email: str      # Made required, not Optional
-    full_name: str  # ADD THIS - missing but needed for frontend
-    role: UserRole  # Changed from Optional[str] to UserRole (required)
+    user_id: UUID4
+    email: str
+    full_name: str
+    role: UserRole
     
     class Config:
         from_attributes = True

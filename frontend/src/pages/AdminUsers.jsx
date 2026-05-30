@@ -97,9 +97,8 @@ function AdminUsers() {
                       cursor: userItem.id === user?.id ? 'not-allowed' : 'pointer'
                     }}
                   >
-                    <option value="SUPER_ADMIN">Super Admin</option>
-                    <option value="GROUP_ADMIN">Group Admin</option>
-                    <option value="GROUP_MEMBER">Group Member</option>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="user">User</option>
                   </select>
                 </td>
                 <td style={{ padding: '1rem' }}>
