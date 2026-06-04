@@ -26,7 +26,7 @@ export function NotificationProvider({ children }) {
     if (!user || !token) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = `ws://localhost:8000/ws/notifications/${user.id}?token=${token}`;
+    const wsUrl = `wss://roscaapp.com/ws/notifications/${user.id}?token=${token}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
