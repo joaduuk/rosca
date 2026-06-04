@@ -1,0 +1,33 @@
+<svg width="200" height="200" viewBox="0 0 200 200" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>ROSCA logo</title>
+<desc>ROSCA logo with coin stack icon in orange</desc>
+
+<!-- Outer ring -->
+<circle cx="100" cy="100" r="88" fill="none" stroke="#FF6B35" stroke-width="16" stroke-linecap="round" stroke-dasharray="470 60"/>
+
+<!-- Inner circle accent -->
+<circle cx="100" cy="100" r="58" fill="#FF6B35" opacity="0.12"/>
+
+<!-- Cycle arrows -->
+<g transform="translate(100,100)">
+  <path d="M -18 -88 Q 0 -103 18 -88" fill="none" stroke="#FF6B35" stroke-width="6" stroke-linecap="round"/>
+  <polygon points="18,-88 26,-76 10,-82" fill="#FF6B35"/>
+  <path d="M 18 88 Q 0 103 -18 88" fill="none" stroke="#FF8C42" stroke-width="6" stroke-linecap="round"/>
+  <polygon points="-18,88 -26,76 -10,82" fill="#FF8C42"/>
+</g>
+
+<!-- Central circle background -->
+<circle cx="100" cy="100" r="36" fill="#FF6B35"/>
+
+<!-- Coin stack icon -->
+<!-- Bottom coin -->
+<ellipse cx="100" cy="118" rx="16" ry="5" fill="#fff" opacity="0.6"/>
+<!-- Middle coin body -->
+<rect x="84" y="103" width="32" height="12" rx="2" fill="#fff" opacity="0.75"/>
+<ellipse cx="100" cy="103" rx="16" ry="5" fill="#fff" opacity="0.9"/>
+<!-- Top coin body -->
+<rect x="84" y="90" width="32" height="12" rx="2" fill="#fff" opacity="0.9"/>
+<ellipse cx="100" cy="90" rx="16" ry="5" fill="#fff"/>
+<!-- Top coin shine -->
+<ellipse cx="100" cy="90" rx="8" ry="2" fill="#FF6B35" opacity="0.4"/>
+</svg>
