@@ -213,10 +213,7 @@ def _process_cycle_payout(group_id: UUID, cycle_number: int, group: Group, db: S
             cycle_number=cycle_number,
         )
     except Exception as e:
-        #print(f"[NOTIFY] payout_processed failed: {e}"), response_model=List[ContributionResponse])
-        print(f"[NOTIFY] payout_processed failed: {e}")
-
-@router.get("/contributions", response_model=List[ContributionResponse])
+        print(f"[NOTIFY] payout_processed failed: {e}"), response_model=List[ContributionResponse])
 def list_contributions(
     group_id: UUID,
     cycle_number: Optional[int] = None,
