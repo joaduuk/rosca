@@ -26,6 +26,7 @@ class User(Base):
     preferred_language = Column(String(2), default="en")
     preferred_currency = Column(String(3), default="USD")
     timezone = Column(String, default="UTC")
+    avatar_url = Column(String, nullable=True)
 
     role = Column(
         SqlEnum(
@@ -37,14 +38,12 @@ class User(Base):
         nullable=False
     )
 
-    # Password reset fields
     reset_token = Column(String, nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
     memberships = relationship(
         "Membership",
         back_populates="user",

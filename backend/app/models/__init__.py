@@ -4,4 +4,6 @@ from .membership import Membership
 from .contribution import Contribution
 from .payout import PayoutSchedule
 
-__all__ = ["User", "Group", "Membership", "Contribution", "PayoutSchedule"]
+from app.models.notification import Notification
+
+__all__ = ["User", "Group", "Membership", "Contribution", "PayoutSchedule", "Notification"]
