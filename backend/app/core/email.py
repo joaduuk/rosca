@@ -6,7 +6,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Optional
 
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.hostinger.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USER = os.getenv("SMTP_USER", "")        # e.g. noreply@yourdomain.com
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 EMAIL_FROM = os.getenv("EMAIL_FROM", SMTP_USER)
@@ -15,7 +15,7 @@ APP_NAME = os.getenv("APP_NAME", "ROSCA")
 
 
 def _send_email(to_email: str, subject: str, html_body: str) -> bool:
-    """Send an email via SMTP. Returns True on success, False on failure."""
+    """Send an email via SMTP_SSL. Returns True on success, False on failure."""
     if not SMTP_USER or not SMTP_PASS:
         print(f"[EMAIL] SMTP not configured — skipping email to {to_email}: {subject}")
         return False
@@ -27,9 +27,8 @@ def _send_email(to_email: str, subject: str, html_body: str) -> bool:
         msg["To"] = to_email
         msg.attach(MIMEText(html_body, "html"))
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
             server.ehlo()
-            server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(EMAIL_FROM, to_email, msg.as_string())
 
