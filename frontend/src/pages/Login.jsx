@@ -79,7 +79,7 @@ const SubmitBtn = ({ loading, label, loadingLabel = 'Please wait…' }) => (
     disabled={loading}
     style={{
       width: '100%', padding: '0.75rem',
-      background: loading ? '#9ca3af' : 'linear-gradient(135deg, #667eea, #764ba2)',
+      background: loading ? '#9ca3af' : 'linear-gradient(135deg, #1a6b4a, #124d35)',
       color: 'white', border: 'none', borderRadius: '6px',
       fontSize: '1rem', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer',
     }}
@@ -290,8 +290,9 @@ function Login() {
       <div style={styles.card}>
         {/* Header */}
         <div style={styles.header}>
-          <div style={styles.logo}>🔄</div>
-          <span style={styles.logoText}>ROSCA</span>
+          <span style={styles.logoText}>
+            Rosca<span style={{ color: '#f0a500' }}>App</span>
+          </span>
         </div>
 
         <div style={styles.body}>
@@ -308,22 +309,22 @@ function Login() {
 const styles = {
   page: {
     minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '1rem'
+    background: 'linear-gradient(135deg, #1a6b4a 0%, #124d35 100%)', padding: '1rem'
   },
   card: {
     background: 'white', borderRadius: '12px',
     boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: '400px', overflow: 'hidden'
   },
   header: {
-    background: 'linear-gradient(135deg, #667eea, #764ba2)', padding: '1.5rem',
+    background: 'linear-gradient(135deg, #1a6b4a, #124d35)', padding: '1.5rem',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
   },
-  logo: { fontSize: '1.75rem' },
-  logoText: { color: 'white', fontSize: '1.5rem', fontWeight: '700', letterSpacing: '0.05em' },
+  logo: {},
+  logoText: { color: 'white', fontSize: '1.8rem', fontWeight: '400', fontFamily: "Georgia, 'DM Serif Display', serif", letterSpacing: '0.01em' },
   body: { padding: '2rem' },
   title: { fontSize: '1.4rem', fontWeight: '700', color: '#111827', marginBottom: '1.25rem', textAlign: 'center' },
   switchText: { textAlign: 'center', marginTop: '1.25rem', color: '#6b7280', fontSize: '0.9rem' },
-  textLink: { background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', fontWeight: '600', fontSize: 'inherit', padding: 0 },
+  textLink: { background: 'none', border: 'none', color: '#1a6b4a', cursor: 'pointer', fontWeight: '600', fontSize: 'inherit', padding: 0 },
 };
 
 export default Login;

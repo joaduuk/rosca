@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navigation } from './components/Navigation';
+import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -16,14 +17,15 @@ function AppContent() {
     <NotificationProvider>
       <Navigation />
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><Dashboard /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><Profile /></ProtectedRoute>} />
         <Route path="/groups/create" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><CreateGroup /></ProtectedRoute>} />
         <Route path="/reports" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><GroupReports /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminUsers /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </NotificationProvider>
   );
