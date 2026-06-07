@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import API from '../services/api';
+import * as XLSX from 'xlsx';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(window.innerWidth < 768);
@@ -22,6 +23,42 @@ function formatDate(dateString) {
   catch { return 'Invalid date'; }
 }
 
+function exportContributions(contributions, group, fmt) {
+  // Build a spreadsheet-style export: rows = members, columns = cycles
+  const cycles = [...new Set(contributions.map(c => c.cycle_number))].sort((a, b) => a - b);
+  const memberMap = {};
+
+  contributions.forEach(c => {
+    const key = c.member_name || 'Unknown';
+    if (!memberMap[key]) memberMap[key] = { name: key, cycles: {}, total: 0 };
+    memberMap[key].cycles[c.cycle_number] = c.amount;
+    if (c.status === 'paid') memberMap[key].total += Number(c.amount);
+  });
+
+  const rows = [];
+  // Header
+  rows.push(['Member', ...cycles.map(c => `Cycle ${c}`), 'Total Paid']);
+  // Data rows
+  Object.values(memberMap).forEach(m => {
+    rows.push([m.name, ...cycles.map(c => m.cycles[c] || 0), m.total]);
+  });
+  // Totals row
+  const cycleTotals = cycles.map(c =>
+    contributions.filter(x => x.cycle_number === c && x.status === 'paid').reduce((s, x) => s + Number(x.amount), 0)
+  );
+  const grandTotal = cycleTotals.reduce((s, v) => s + v, 0);
+  rows.push(['TOTAL', ...cycleTotals, grandTotal]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [{ wch: 24 }, ...cycles.map(() => ({ wch: 14 })), { wch: 14 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Contributions');
+  XLSX.writeFile(wb, `${group?.name || 'rosca'}-contributions.xlsx`);
+}
+
 export default function GroupReports() {
   const mobile = useIsMobile();
   const [groups, setGroups] = useState([]);
@@ -31,6 +68,7 @@ export default function GroupReports() {
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('summary');
+  const [contribView, setContribView] = useState('list'); // 'list' | 'spreadsheet'
 
   useEffect(() => { fetchGroups(); }, []);
 
@@ -57,6 +95,22 @@ export default function GroupReports() {
 
   const currency = selectedGroup?.currency || 'USD';
   const fmt = (n) => formatCurrency(n, currency);
+
+  // Build spreadsheet data from contributions
+  const cycles = [...new Set(contributions.map(c => c.cycle_number))].sort((a, b) => a - b);
+  const memberMap = {};
+  contributions.forEach(c => {
+    const key = c.member_name || 'Unknown';
+    if (!memberMap[key]) memberMap[key] = { name: key, cycles: {}, total: 0, statuses: {} };
+    memberMap[key].cycles[c.cycle_number] = c.amount;
+    memberMap[key].statuses[c.cycle_number] = c.status;
+    if (c.status === 'paid') memberMap[key].total += Number(c.amount);
+  });
+  const memberRows = Object.values(memberMap);
+  const cycleTotals = cycles.map(c =>
+    contributions.filter(x => x.cycle_number === c && x.status === 'paid').reduce((s, x) => s + Number(x.amount), 0)
+  );
+  const grandTotal = cycleTotals.reduce((s, v) => s + v, 0);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading…</div>;
 
@@ -90,8 +144,8 @@ export default function GroupReports() {
           <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
             {[
               { label: 'Total Collected', value: fmt(summary.total_collected || 0), color: '#059669', bg: '#f0fdf4' },
-              { label: 'Total Paid Out', value: fmt(summary.total_paid_out || 0), color: '#dc2626', bg: '#fef2f2' },
-              { label: 'Current Balance', value: fmt(summary.balance || 0), color: '#2563eb', bg: '#eff6ff' },
+              { label: 'Total Paid Out',  value: fmt(summary.total_paid_out || 0),  color: '#dc2626', bg: '#fef2f2' },
+              { label: 'Current Balance', value: fmt(summary.balance || 0),          color: '#2563eb', bg: '#eff6ff' },
               { label: 'Cycles Completed', value: summary.total_cycles_completed || 0, color: '#1a6b4a', bg: '#f0f9f4' },
             ].map(card => (
               <div key={card.label} style={{ background: card.bg, borderRadius: '12px', padding: '1.25rem', border: `1px solid ${card.color}22` }}>
@@ -105,9 +159,9 @@ export default function GroupReports() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
           {[
-            { key: 'summary', label: '📋 Cycle Summary' },
+            { key: 'summary',       label: '📋 Cycle Summary' },
             { key: 'contributions', label: '💳 Contributions' },
-            { key: 'payouts', label: '💰 Payouts' },
+            { key: 'payouts',       label: '💰 Payouts' },
           ].map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
               padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', cursor: 'pointer',
@@ -126,8 +180,8 @@ export default function GroupReports() {
             <h3 style={{ fontSize: '1rem', fontWeight: '700', color: '#0f172a', marginBottom: '1rem' }}>Current Cycle Summary</h3>
             <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.25rem' }}>
               {[
-                { label: 'Current Cycle', value: `#${summary.current_cycle || 1}` },
-                { label: 'Members Paid', value: `${summary.current_cycle_paid || 0} / ${summary.total_members || 0}` },
+                { label: 'Current Cycle',   value: `#${summary.current_cycle || 1}` },
+                { label: 'Members Paid',    value: `${summary.current_cycle_paid || 0} / ${summary.total_members || 0}` },
                 { label: 'Members Pending', value: summary.current_cycle_pending || 0 },
               ].map(item => (
                 <div key={item.label} style={{ background: '#f8fafc', borderRadius: '8px', padding: '1rem' }}>
@@ -148,12 +202,42 @@ export default function GroupReports() {
         {/* Tab: Contributions */}
         {activeTab === 'contributions' && (
           <div style={{ background: 'white', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: '700', color: '#0f172a', marginBottom: '1rem' }}>
-              All Contributions <span style={{ fontWeight: '400', color: '#64748b', fontSize: '0.875rem' }}>({contributions.length})</span>
-            </h3>
+
+            {/* Contributions toolbar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: '700', color: '#0f172a', margin: 0 }}>
+                Contributions <span style={{ fontWeight: '400', color: '#64748b', fontSize: '0.875rem' }}>({contributions.length})</span>
+              </h3>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {/* View toggle */}
+                <div style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                  {[{ key: 'list', label: '☰ List' }, { key: 'spreadsheet', label: '⊞ Spreadsheet' }].map(v => (
+                    <button key={v.key} onClick={() => setContribView(v.key)} style={{
+                      padding: '0.4rem 0.9rem', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600',
+                      background: contribView === v.key ? '#1a6b4a' : 'white',
+                      color: contribView === v.key ? 'white' : '#64748b',
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}>
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Export button — always visible when there's data */}
+                {contributions.length > 0 && (
+                  <button
+                    onClick={() => exportContributions(contributions, selectedGroup, fmt)}
+                    style={{ padding: '0.45rem 1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    ⬇ Export Excel
+                  </button>
+                )}
+              </div>
+            </div>
+
             {contributions.length === 0 ? (
               <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>No contributions recorded yet.</p>
-            ) : (
+            ) : contribView === 'list' ? (
+              /* ── List view ── */
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                   <thead>
@@ -179,6 +263,70 @@ export default function GroupReports() {
                       </tr>
                     ))}
                   </tbody>
+                </table>
+              </div>
+            ) : (
+              /* ── Spreadsheet view ── */
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '500px' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc' }}>
+                      <th style={{ padding: '0.65rem 1rem', textAlign: 'left', fontWeight: '700', color: '#0f172a', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: '#f8fafc', zIndex: 1 }}>
+                        Member
+                      </th>
+                      {cycles.map(c => (
+                        <th key={c} style={{ padding: '0.65rem 0.75rem', textAlign: 'center', fontWeight: '600', color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          Cycle {c}
+                        </th>
+                      ))}
+                      <th style={{ padding: '0.65rem 0.75rem', textAlign: 'center', fontWeight: '700', color: '#1a6b4a', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                        Total Paid
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {memberRows.map((m, i) => (
+                      <tr key={m.name} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                        <td style={{ padding: '0.65rem 1rem', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: i % 2 === 0 ? 'white' : '#fafafa', zIndex: 1 }}>
+                          {m.name}
+                        </td>
+                        {cycles.map(c => {
+                          const amount = m.cycles[c];
+                          const status = m.statuses[c];
+                          return (
+                            <td key={c} style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>
+                              {amount != null ? (
+                                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                  <span style={{ fontWeight: '600', color: status === 'paid' ? '#059669' : '#dc2626', fontSize: '0.82rem' }}>{fmt(amount)}</span>
+                                  <span style={{ fontSize: '0.65rem' }}>{status === 'paid' ? '✅' : '⏳'}</span>
+                                </span>
+                              ) : (
+                                <span style={{ color: '#cbd5e1' }}>—</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center', fontWeight: '700', color: '#1a6b4a' }}>
+                          {fmt(m.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background: '#f0f9f4', borderTop: '2px solid #e2e8f0' }}>
+                      <td style={{ padding: '0.65rem 1rem', fontWeight: '700', color: '#1a6b4a', position: 'sticky', left: 0, background: '#f0f9f4', zIndex: 1 }}>
+                        Cycle Total
+                      </td>
+                      {cycleTotals.map((t, i) => (
+                        <td key={i} style={{ padding: '0.65rem 0.75rem', textAlign: 'center', fontWeight: '700', color: '#1a6b4a', fontSize: '0.85rem' }}>
+                          {fmt(t)}
+                        </td>
+                      ))}
+                      <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center', fontWeight: '700', color: '#1a6b4a' }}>
+                        {fmt(grandTotal)}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}
@@ -229,6 +377,7 @@ export default function GroupReports() {
             )}
           </div>
         )}
+
       </div>
     </div>
   );
