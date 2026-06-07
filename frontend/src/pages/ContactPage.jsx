@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-
-const BASE_URL = 'https://roscaapp.com';
+import API from '../services/api';
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -15,20 +14,13 @@ export default function ContactPage() {
     setStatus('sending');
     setError('');
     try {
-      const res = await fetch(`${BASE_URL}/contact`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || 'Something went wrong');
-      }
+      const res = await API.post('/contact', form);
+      if (!res.data) throw new Error('Something went wrong');
       setStatus('success');
       setForm({ name: '', email: '', subject: '', message: '' });
     } catch (err) {
       setStatus('error');
-      setError(err.message);
+      setError(err.response?.data?.detail || err.message || 'Something went wrong. Please try again.');
     }
   };
 
