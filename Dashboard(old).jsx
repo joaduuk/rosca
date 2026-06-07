@@ -299,15 +299,14 @@ export default function Dashboard() {
       <div style={{ ...styles.layout, flexDirection: mobile ? 'column' : 'row' }}>
 
         {/* ── SIDEBAR ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', width: mobile ? '100%' : '280px', flexShrink: 0 }}>
-          {mobile && (
-            <div style={{ padding: '0.75rem 1rem', background: 'white', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: mobile ? '0.75rem 1rem' : '0', background: mobile ? 'white' : 'transparent', borderBottom: mobile ? '1px solid #e2e8f0' : 'none' }}>
+            {mobile && (
               <button onClick={() => setSidebarOpen(o => !o)} style={{ background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem' }}>
                 {sidebarOpen ? '✕ Close Groups' : '☰ My Groups'}
               </button>
-            </div>
-          )}
-          <aside style={{ ...styles.sidebar, width: '100%', display: mobile && !sidebarOpen ? 'none' : 'flex' }}>
+            )}
+          </div>
+          <aside style={{ ...styles.sidebar, width: mobile ? '100%' : '280px', display: mobile && !sidebarOpen ? 'none' : 'flex' }}>
           <div style={styles.sidebarHeader}>
             <span style={styles.sidebarTitle}>My Groups</span>
             <span style={styles.sidebarCount}>{groups.length}</span>
@@ -347,7 +346,7 @@ export default function Dashboard() {
             ))}
           </div>
         </aside>
-        </div>
+          </div>
 
         {/* ── MAIN ── */}
         <main style={styles.main}>
