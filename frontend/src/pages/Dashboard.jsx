@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import CycleManager from './CycleManager';
 
 
 function useIsMobile() {
@@ -353,7 +354,7 @@ export default function Dashboard() {
         <main style={styles.main}>
           {!selectedGroup ? (
             <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}></div>
+              <div style={styles.emptyIcon}>🔄</div>
               <h2 style={styles.emptyTitle}>Welcome to RoscaApp</h2>
               <p style={styles.emptyText}>Create a group or select one from the sidebar to get started.</p>
               <button onClick={() => setShowCreateForm(true)} style={styles.ctaBtn}>
@@ -414,12 +415,12 @@ export default function Dashboard() {
 
               {/* ── TABS ── */}
               <div style={styles.tabBar}>
-                {['cycle', 'members', 'payouts', 'contributions'].map(tab => (
+                {['cycle', 'members', 'payouts', 'contributions', 'manage'].map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)} style={{
                     ...styles.tab,
                     ...(activeTab === tab ? styles.tabActive : {})
                   }}>
-                    {{ cycle: '📊 Cycle Status', members: '👥 Members', payouts: '💰 Payouts', contributions: '📋 Contributions' }[tab]}
+                    {{ cycle: '📊 Cycle Status', members: '👥 Members', payouts: '💰 Payouts', contributions: '📋 Contributions', manage: '⚙️ Manage' }[tab]}
                   </button>
                 ))}
               </div>
@@ -706,6 +707,18 @@ export default function Dashboard() {
                       </table>
                     </div>
                   )}
+                </div>
+              )}
+              {/* ── TAB: MANAGE ── */}
+              {activeTab === 'manage' && (
+                <div style={styles.card}>
+                  <h3 style={styles.sectionTitle}>Group Management</h3>
+                  <CycleManager
+                    group={selectedGroup}
+                    members={members}
+                    currentUser={user}
+                    onUpdate={() => refreshAll(selectedGroup.id)}
+                  />
                 </div>
               )}
             </>
