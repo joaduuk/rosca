@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.routers import auth, groups, contributions, members, users, admin, notifications
+from app.routers import auth, groups, contributions, members, users, admin, notifications, contact
 from app.tasks.due_reminders import start_scheduler
 
 app = FastAPI(
@@ -37,6 +37,7 @@ app.include_router(members.router)
 app.include_router(contributions.router)
 app.include_router(admin.router)
 app.include_router(notifications.router)
+app.include_router(contact.router)
 
 
 @app.on_event("startup")

@@ -38,6 +38,7 @@ function PublicNav() {
     { label: 'FAQ', href: '/#faq' },
     { label: 'Terms', href: '/#terms' },
     { label: 'Privacy', href: '/#privacy' },
+    { label: 'Contact', to: '/contact' },
   ];
 
   return (
@@ -129,6 +130,8 @@ function AuthNav() {
   ];
 
   return (
+    <>
+    {bellOpen && <div onClick={() => setBellOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998 }} />}
     <nav style={{ background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100 }}>
       <div style={{ padding: '0 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '64px' }}>
         
@@ -169,7 +172,7 @@ function AuthNav() {
               )}
             </button>
             {bellOpen && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: mobile ? '320px' : '360px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', border: '1px solid #e2e8f0', zIndex: 999, overflow: 'hidden' }}>
+              <div style={{ position: 'fixed', top: '70px', right: mobile ? '8px' : '16px', left: mobile ? '8px' : 'auto', width: mobile ? 'calc(100vw - 16px)' : '360px', background: 'white', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', border: '1px solid #e2e8f0', zIndex: 9999, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.875rem 1rem', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontWeight: '700', color: '#0f172a', fontSize: '0.9rem' }}>
                     Notifications {unreadCount > 0 && <span style={{ background: '#1a6b4a', color: 'white', borderRadius: '9999px', fontSize: '0.65rem', padding: '0.1rem 0.4rem', marginLeft: '0.4rem' }}>{unreadCount} new</span>}
@@ -233,6 +236,7 @@ function AuthNav() {
         </div>
       )}
     </nav>
+    </>
   );
 }
 

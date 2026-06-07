@@ -353,7 +353,7 @@ export default function Dashboard() {
         <main style={styles.main}>
           {!selectedGroup ? (
             <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}>🔄</div>
+              <div style={styles.emptyIcon}></div>
               <h2 style={styles.emptyTitle}>Welcome to RoscaApp</h2>
               <p style={styles.emptyText}>Create a group or select one from the sidebar to get started.</p>
               <button onClick={() => setShowCreateForm(true)} style={styles.ctaBtn}>
