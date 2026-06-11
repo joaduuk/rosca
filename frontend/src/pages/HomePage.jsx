@@ -437,6 +437,9 @@ function Footer({ mobile }) {
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <p style={{ fontSize: '0.82rem', color: '#5a907a' }}>© 2025 RoscaApp. All rights reserved. RoscaApp is a free record-keeping tool and is not a financial service provider.</p>
           <div style={{ display: 'flex', gap: '1.5rem' }}>
+            <Link to="/about-the-developer" style={{ fontSize: '0.82rem', color: '#5a907a', textDecoration: 'none' }}>
+    Developer
+  </Link>
             <a href="#privacy" style={{ fontSize: '0.82rem', color: '#5a907a', textDecoration: 'none' }}>Privacy</a>
             <a href="#terms" style={{ fontSize: '0.82rem', color: '#5a907a', textDecoration: 'none' }}>Terms</a>
           </div>
