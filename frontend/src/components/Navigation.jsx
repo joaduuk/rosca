@@ -39,6 +39,7 @@ function PublicNav() {
     { label: 'Terms', href: '/#terms' },
     { label: 'Privacy', href: '/#privacy' },
     { label: 'Contact', to: '/contact' },
+   
   ];
 
   return (

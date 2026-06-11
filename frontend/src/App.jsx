@@ -13,6 +13,7 @@ import GroupReports from './pages/GroupReports';
 import Profile from './pages/Profile';
 import ContactPage from './pages/ContactPage';
 import GroupManage from './pages/GroupManage';
+import AboutDeveloper from './pages/AboutDeveloper';
 
 function AppContent() {
   return (
@@ -28,8 +29,11 @@ function AppContent() {
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminUsers /></ProtectedRoute>} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/about-the-developer" element={<AboutDeveloper />} />
         <Route path="/manage" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><GroupManage /></ProtectedRoute>} />
+        
         <Route path="*" element={<Navigate to="/" replace />} />
+        
       </Routes>
     </NotificationProvider>
   );
