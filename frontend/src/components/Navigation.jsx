@@ -131,7 +131,6 @@ function AuthNav() {
 
   return (
     <>
-    {bellOpen && <div onClick={() => setBellOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998 }} />}
     <nav style={{ background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100 }}>
       <div style={{ padding: '0 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '64px' }}>
         
