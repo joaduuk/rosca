@@ -435,3 +435,77 @@ def decide_waitlist(
     db.commit()
     action = "approved and added to group" if body.approved else "rejected"
     return {"message": f"Waitlist request {action}"}
+
+
+# ── CONTRIBUTION MATRIX ───────────────────────────────────────────────────
+
+@router.get("/{group_id}/contribution-matrix")
+def contribution_matrix(
+    group_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: bool = Depends(group_member_dependency)
+):
+    """Returns a matrix of member contributions per cycle for reporting."""
+    from app.models.contribution import Contribution
+    from app.models.payout import PayoutSchedule
+
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    active_members = db.query(Membership).filter(
+        Membership.group_id == group_id,
+        Membership.is_active == True,
+    ).all()
+
+    contributions = db.query(Contribution).filter(
+        Contribution.group_id == group_id,
+        Contribution.status == 'paid',
+    ).all()
+
+    payouts = db.query(PayoutSchedule).filter(
+        PayoutSchedule.group_id == group_id,
+        PayoutSchedule.status == 'paid',
+    ).all()
+
+    # Build payout lookup: membership_id -> cycle_number
+    payout_lookup = {str(p.membership_id): p.cycle_number for p in payouts}
+
+    # Get all cycle numbers that have contributions
+    cycles = sorted(set(c.cycle_number for c in contributions)) or [1]
+
+    # Build cycle totals
+    cycle_totals = {}
+    for c in contributions:
+        cycle_totals[c.cycle_number] = cycle_totals.get(c.cycle_number, 0) + c.amount
+
+    grand_total = sum(c.amount for c in contributions)
+
+    # Build member rows
+    members_data = []
+    for m in active_members:
+        member_contribs = {c.cycle_number: {'amount': c.amount, 'paid_date': c.paid_date.isoformat() if c.paid_date else None}
+                          for c in contributions if str(c.membership_id) == str(m.id)}
+        total_paid = sum(v['amount'] for v in member_contribs.values())
+        payout_cycle = payout_lookup.get(str(m.id))
+
+        members_data.append({
+            'user_id': str(m.user_id),
+            'name': m.user.full_name if m.user else 'Unknown',
+            'email': m.user.email if m.user else '',
+            'payout_order': m.payout_order,
+            'contributions': member_contribs,
+            'total_paid': total_paid,
+            'payout_cycle': payout_cycle,
+        })
+
+    members_data.sort(key=lambda x: x['payout_order'] or 999)
+
+    return {
+        'cycles': cycles,
+        'members': members_data,
+        'cycle_totals': cycle_totals,
+        'grand_total': grand_total,
+        'currency': group.currency,
+    }
