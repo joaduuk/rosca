@@ -137,6 +137,23 @@ export default function ContactPage() {
               >
                 {status === 'sending' ? '⏳ Sending...' : 'Send Message →'}
               </button>
+              {/* Developer credit footer */}
+<div style={{
+  marginTop: '1.5rem',
+  paddingTop: '1rem',
+  borderTop: '1px solid #e2e8f0',
+  textAlign: 'center',
+  fontSize: '0.8rem',
+  color: '#64748b'
+}}>
+  Built with care by{' '}
+  <Link
+    to="/about-the-developer"
+    style={{ color: '#1a6b4a', fontWeight: '600', textDecoration: 'none' }}
+  >
+    John Adu, MSc
+  </Link>
+</div>
 
               <p style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', marginTop: '0.75rem' }}>
                 By submitting this form you agree to our <a href="/#privacy" style={{ color: '#1a6b4a' }}>Privacy Policy</a>.
