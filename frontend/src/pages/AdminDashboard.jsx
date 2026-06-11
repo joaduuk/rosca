@@ -6,6 +6,7 @@ function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchAdminData();
@@ -23,12 +24,15 @@ function AdminDashboard() {
       setGroups(groupsRes.data);
     } catch (error) {
       console.error('Failed to fetch admin data:', error);
+      setError('Failed to load admin data. Please refresh.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>;
+  if (error) return <div style={{ padding: '2rem', color: '#dc2626' }}>{error}</div>;
+  if (!stats) return <div style={{ padding: '2rem', color: '#dc2626' }}>No data available.</div>;
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -38,19 +42,19 @@ function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
         <div style={{ background: '#667eea', color: 'white', padding: '1.5rem', borderRadius: '8px' }}>
           <h3>Total Users</h3>
-          <p style={{ fontSize: '2rem' }}>{stats.total_users}</p>
+          <p style={{ fontSize: '2rem' }}>{stats.total_users ?? '—'}</p>
         </div>
         <div style={{ background: '#48bb78', color: 'white', padding: '1.5rem', borderRadius: '8px' }}>
           <h3>Active Groups</h3>
-          <p style={{ fontSize: '2rem' }}>{stats.total_groups}</p>
+          <p style={{ fontSize: '2rem' }}>{stats.total_groups ?? '—'}</p>
         </div>
         <div style={{ background: '#fbbf24', color: 'white', padding: '1.5rem', borderRadius: '8px' }}>
           <h3>Total Contributions</h3>
-          <p style={{ fontSize: '2rem' }}>{stats.total_contributions.toLocaleString()}</p>
+          <p style={{ fontSize: '2rem' }}>{(stats.total_contributions ?? 0).toLocaleString()}</p>
         </div>
         <div style={{ background: '#f56565', color: 'white', padding: '1.5rem', borderRadius: '8px' }}>
           <h3>Today's Active</h3>
-          <p style={{ fontSize: '2rem' }}>{stats.active_groups_today}</p>
+          <p style={{ fontSize: '2rem' }}>{stats.active_groups_today ?? '—'}</p>
         </div>
       </div>
 
