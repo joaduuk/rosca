@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /contact
+Allow: /about-the-developer
+Allow: /login
+
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /admin
+Disallow: /groups/
+Disallow: /reports
+Disallow: /manage
+
+Sitemap: https://roscaapp.com/sitemap.xml
