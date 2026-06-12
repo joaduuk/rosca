@@ -1,7 +1,14 @@
 import founderPhoto from '../assets/founder-1.jpeg';
+import SEO from '../components/SEO';
 
 function AboutDeveloper() {
   return (
+    <>
+    <SEO
+      title="About the Developer"
+      description="Meet John Adu, MSc — founder and lead developer of RoscaApp. Software engineer with over 30 years of experience in fintech, banking systems and web development."
+      path="/about-the-developer"
+    />
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%)',
@@ -128,6 +135,7 @@ function AboutDeveloper() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

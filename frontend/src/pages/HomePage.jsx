@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import SEO from '../components/SEO';
 import { Link } from 'react-router-dom';
 
 // ── Inject Google Fonts ───────────────────────────────
@@ -454,12 +455,14 @@ export default function HomePage() {
   const mobile = useIsMobile();
   const tablet = useIsTablet();
 
-  useEffect(() => {
-    document.title = 'RoscaApp – Free ROSCA Management Tool';
-  }, []);
-
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#1c1c1c', background: 'white' }}>
+    <>
+      <SEO
+        title="Free ROSCA &amp; Savings Circle Management"
+        description="RoscaApp is a free platform to manage rotating savings and credit associations (ROSCAs), susu, chit funds, tontines and pardner circles. Track contributions, payouts and members online."
+        path="/"
+      />
+      <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#1c1c1c', background: 'white' }}>
       <Hero mobile={mobile} />
       <NamesStrip />
       <WhatIsRosca tablet={tablet} />
@@ -472,5 +475,6 @@ export default function HomePage() {
       <PrivacySection />
       <Footer mobile={mobile} />
     </div>
+    </>
   );
 }
