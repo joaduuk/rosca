@@ -219,7 +219,7 @@ function GlobalNames({ mobile }) {
   ];
   const cols = mobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(180px, 1fr))';
   return (
-    <section style={{ background: '#f8faf9', padding: '4.5rem 0' }}>
+    <section id="names" style={{ background: '#f8faf9', padding: '4.5rem 0' }}>
       <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '0 1.5rem' }}>
         <SLabel>Known Around the World</SLabel>
         <STitle>One Idea, A Hundred Names</STitle>
@@ -416,7 +416,7 @@ function Footer({ mobile }) {
           <div>
             <h4 style={{ color: 'white', fontSize: '0.82rem', fontWeight: '700', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '1rem' }}>Legal</h4>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {[['Terms & Conditions', '#terms'], ['Privacy Policy', '#privacy'], ['Cookie Policy', '#privacy']].map(([label, href]) => (
+              {[['Terms & Conditions', '#terms'], ['Privacy Policy', '#privacy'], ['Cookie Policy', '#privacy'], ['Blog', '']].map(([label, href]) => (
                 <li key={label} style={{ marginBottom: '0.5rem' }}>
                   <a href={href} style={{ color: '#8abba0', fontSize: '0.88rem', textDecoration: 'none' }}>{label}</a>
                 </li>
@@ -426,7 +426,7 @@ function Footer({ mobile }) {
           <div>
             <h4 style={{ color: 'white', fontSize: '0.82rem', fontWeight: '700', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '1rem' }}>Learn More</h4>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {[['What is a ROSCA?', '#about'], ['How It Works', '#faq'], ['Global ROSCA Names', '#about']].map(([label, href]) => (
+              {[['What is a ROSCA?', '#about'], ['How It Works', '#about'], ['Global ROSCA Names', '#names'], ['FAQs', '#faq']].map(([label, href]) => (
                 <li key={label} style={{ marginBottom: '0.5rem' }}>
                   <a href={href} style={{ color: '#8abba0', fontSize: '0.88rem', textDecoration: 'none' }}>{label}</a>
                 </li>
