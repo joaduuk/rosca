@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import SEO from '../components/SEO';
 import { Link } from 'react-router-dom';
 import API from '../services/api';
 
@@ -25,6 +26,12 @@ export default function ContactPage() {
   };
 
   return (
+    <>
+    <SEO
+      title="Contact Us"
+      description="Get in touch with the RoscaApp team. We'd love to hear from you about your savings circle needs."
+      path="/contact"
+    />
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#f8faf9', minHeight: '100vh' }}>
 
       {/* Header */}
@@ -163,5 +170,6 @@ export default function ContactPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
