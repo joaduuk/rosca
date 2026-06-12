@@ -1,4 +1,4 @@
-import founderPhoto from '../assets/founder-1.jpeg';
+import founderPhoto from '../assets/founder-1.jpg';
 import SEO from '../components/SEO';
 
 function AboutDeveloper() {
