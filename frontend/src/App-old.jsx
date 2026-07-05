@@ -9,7 +9,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
-import AdminGroupLookup from './pages/AdminGroupLookup';
 import CreateGroup from './pages/CreateGroup';
 import GroupReports from './pages/GroupReports';
 import Profile from './pages/Profile';
@@ -30,7 +29,6 @@ function AppContent() {
         <Route path="/reports" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><GroupReports /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminUsers /></ProtectedRoute>} />
-        <Route path="/admin/groups" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminGroupLookup /></ProtectedRoute>} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/about-the-developer" element={<AboutDeveloper />} />
         <Route path="/manage" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><GroupManage /></ProtectedRoute>} />
