@@ -39,7 +39,6 @@ function PublicNav() {
     { label: 'Terms', href: '/#terms' },
     { label: 'Privacy', href: '/#privacy' },
     { label: 'Contact', to: '/contact' },
-   
   ];
 
   return (
@@ -127,11 +126,12 @@ function AuthNav() {
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Reports', to: '/reports' },
     { label: 'Manage', to: '/manage' },
-    ...(isSuperAdmin ? [{ label: 'Admin', to: '/admin' }, { label: 'Users', to: '/admin/users' }] : []),
+    ...(isSuperAdmin ? [{ label: 'Admin', to: '/admin' }, { label: 'Users', to: '/admin/users' }, { label: 'Groups', to: '/admin/groups' }] : []),
   ];
 
   return (
     <>
+    {bellOpen && <div onClick={() => setBellOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 998 }} />}
     <nav style={{ background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100 }}>
       <div style={{ padding: '0 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '64px' }}>
         
