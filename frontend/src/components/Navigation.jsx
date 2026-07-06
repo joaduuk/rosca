@@ -126,7 +126,7 @@ function AuthNav() {
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Reports', to: '/reports' },
     { label: 'Manage', to: '/manage' },
-    ...(isSuperAdmin ? [{ label: 'Admin', to: '/admin' }, { label: 'Users', to: '/admin/users' }, { label: 'Groups', to: '/admin/groups' }] : []),
+    ...(isSuperAdmin ? [{ label: 'Admin', to: '/admin' }, { label: 'Users', to: '/admin/users' }] : []),
   ];
 
   return (
@@ -153,11 +153,21 @@ function AuthNav() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* User info — desktop only */}
           {!mobile && (
-            <Link to="/profile" style={{ fontSize: '0.875rem', color: '#64748b', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              {user?.fullName || user?.email}
-              <span style={{ background: isSuperAdmin ? '#1a6b4a' : '#f0a500', color: 'white', borderRadius: '9999px', fontSize: '0.65rem', padding: '0.1rem 0.45rem', textTransform: 'uppercase', fontWeight: '600' }}>
-                {user?.role}
-              </span>
+            <Link to="/profile" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              {/* Avatar circle */}
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: isSuperAdmin ? '#1a6b4a' : '#f0a500', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem', flexShrink: 0, overflow: 'hidden', border: '2px solid ' + (isSuperAdmin ? '#1a6b4a' : '#f0a500') }}>
+                {user?.avatar_url
+                  ? <img src={user.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (user?.fullName || user?.email || '?')[0].toUpperCase()
+                }
+              </div>
+              {/* Name + role */}
+              <div style={{ lineHeight: 1.2 }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: '600', color: '#1a6b4a' }}>
+                  {user?.fullName?.split(' ')[0] || 'Profile'}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>View profile</div>
+              </div>
             </Link>
           )}
 
