@@ -16,6 +16,9 @@ import Profile from './pages/Profile';
 import ContactPage from './pages/ContactPage';
 import GroupManage from './pages/GroupManage';
 import AboutDeveloper from './pages/AboutDeveloper';
+import UserGuidePage from './pages/UserGuidePage';
+
+
 
 function AppContent() {
   return (
@@ -32,6 +35,7 @@ function AppContent() {
         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminUsers /></ProtectedRoute>} />
         <Route path="/admin/groups" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminGroupLookup /></ProtectedRoute>} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/user-guide" element={<UserGuidePage />} />
         <Route path="/about-the-developer" element={<AboutDeveloper />} />
         <Route path="/manage" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><GroupManage /></ProtectedRoute>} />
         

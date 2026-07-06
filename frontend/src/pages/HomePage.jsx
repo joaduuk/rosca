@@ -427,7 +427,7 @@ function Footer({ mobile }) {
           <div>
             <h4 style={{ color: 'white', fontSize: '0.82rem', fontWeight: '700', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '1rem' }}>Learn More</h4>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {[['What is a ROSCA?', '#about'], ['How It Works', '#about'], ['Global ROSCA Names', '#names'], ['FAQs', '#faq']].map(([label, href]) => (
+              {[['What is a ROSCA?', '#about'], ['How It Works', '#about'], ['User Guide', '/user-guide'], ['FAQs', '#faq']].map(([label, href]) => (
                 <li key={label} style={{ marginBottom: '0.5rem' }}>
                   <a href={href} style={{ color: '#8abba0', fontSize: '0.88rem', textDecoration: 'none' }}>{label}</a>
                 </li>
