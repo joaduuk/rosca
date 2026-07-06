@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { ALL_CURRENCIES, formatCurrency } from '../utils/currency';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(window.innerWidth < 768);
@@ -10,16 +11,6 @@ function useIsMobile() {
     return () => window.removeEventListener('resize', fn);
   }, []);
   return mobile;
-}
-
-const CURRENCIES = ['USD','EUR','GBP','NGN','KES','GHS','ZAR','INR','BRL','JPY'];
-
-function formatCurrency(amount, currencyCode = 'USD') {
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode }).format(amount);
-  } catch {
-    return `${currencyCode} ${Number(amount).toFixed(2)}`;
-  }
 }
 
 function formatDate(dateString) {
@@ -140,21 +131,11 @@ export default function Dashboard() {
   const searchUsers = async () => {
     if (!searchEmail.trim()) return;
     setIsSearching(true);
-    setAvailableUsers([]);
     try {
-      const res = await API.get(`/users/lookup?invite_code=${encodeURIComponent(searchEmail.trim().toUpperCase())}`);
+      const res = await API.get(`/users/search?email=${encodeURIComponent(searchEmail)}`);
       const memberIds = members.map(m => m.user_id);
-      if (memberIds.includes(res.data.id)) {
-        alert('This person is already a member of the group.');
-      } else {
-        setAvailableUsers([res.data]);
-      }
-    } catch (err) {
-      const msg = err.response?.status === 404
-        ? 'No user found with that invite code. Please check the code and try again.'
-        : 'Lookup failed. Please try again.';
-      alert(msg);
-    }
+      setAvailableUsers(res.data.filter(u => !memberIds.includes(u.id)));
+    } catch { alert('Search failed'); }
     finally { setIsSearching(false); }
   };
 
@@ -446,7 +427,7 @@ export default function Dashboard() {
                   <input type="number" value={newGroup.contribution_amount} required min="1" step="0.01" onChange={e => setNewGroup({ ...newGroup, contribution_amount: e.target.value })} style={s.input} /></div>
                 <div style={{ flex: 1 }}><label style={s.label}>Currency</label>
                   <select value={newGroup.currency} onChange={e => setNewGroup({ ...newGroup, currency: e.target.value })} style={s.input}>
-                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                    {ALL_CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</select></div>
               </div>
               <div style={s.fieldRow}>
                 <div style={{ flex: 1 }}><label style={s.label}>Period</label>
@@ -490,34 +471,22 @@ export default function Dashboard() {
               )}
             </div>
             <div style={s.field}>
-              <label style={s.label}>Member Invite Code</label>
-              <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>
-                Ask the person to share their invite code from their Profile page (e.g. RC-A3K7PQ)
-              </p>
+              <label style={s.label}>Search Member by Email</label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input type="text" value={searchEmail} placeholder="e.g. RC-A3K7PQ"
-                  onChange={e => setSearchEmail(e.target.value.toUpperCase())}
+                <input type="email" value={searchEmail} placeholder="user@example.com"
+                  onChange={e => setSearchEmail(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchUsers())}
-                  style={{ ...s.input, flex: 1, marginBottom: 0, letterSpacing: '0.05em', fontFamily: 'monospace' }} />
-                <button onClick={searchUsers} disabled={isSearching} style={s.submitBtn}>{isSearching ? '…' : 'Look Up'}</button>
+                  style={{ ...s.input, flex: 1, marginBottom: 0 }} />
+                <button onClick={searchUsers} disabled={isSearching} style={s.submitBtn}>{isSearching ? '…' : 'Search'}</button>
               </div>
             </div>
             {availableUsers.length > 0 && (
-              <div style={{ marginTop: '1rem' }}>
+              <div style={{ marginTop: '1rem', maxHeight: '250px', overflowY: 'auto' }}>
                 {availableUsers.map(u => (
-                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '0.75rem 1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      {u.avatar_url
-                        ? <img src={u.avatar_url} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
-                        : <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#667eea', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '1rem' }}>{u.full_name?.[0]?.toUpperCase()}</div>
-                      }
-                      <div>
-                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{u.full_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>✓ User found</div>
-                      </div>
-                    </div>
-                    <button onClick={() => handleAddMember(u.id)} style={{ ...s.submitBtn, padding: '0.4rem 1rem' }}>Add</button>
-                  </div>
+                  <button key={u.id} onClick={() => handleAddMember(u.id)} style={s.userResult}>
+                    <div style={{ fontWeight: '600' }}>{u.full_name}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{u.email}</div>
+                  </button>
                 ))}
               </div>
             )}
