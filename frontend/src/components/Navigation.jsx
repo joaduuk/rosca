@@ -126,7 +126,7 @@ function AuthNav() {
     { label: 'Dashboard', to: '/dashboard' },
     { label: 'Reports', to: '/reports' },
     { label: 'Manage', to: '/manage' },
-    ...(isSuperAdmin ? [{ label: 'Admin', to: '/admin' }, { label: 'Users', to: '/admin/users' }] : []),
+    ...(isSuperAdmin ? [{ label: 'Admin', to: '/admin' }, { label: 'Users', to: '/admin/users' }, { label: 'Groups', to: '/admin/groups' }] : []),
   ];
 
   return (
