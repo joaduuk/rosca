@@ -131,12 +131,23 @@ export default function Dashboard() {
   const searchUsers = async () => {
     if (!searchEmail.trim()) return;
     setIsSearching(true);
+    setAvailableUsers([]);
     try {
-      const res = await API.get(`/users/search?email=${encodeURIComponent(searchEmail)}`);
+      const res = await API.get(`/users/lookup?invite_code=${encodeURIComponent(searchEmail.trim().toUpperCase())}`);
       const memberIds = members.map(m => m.user_id);
-      setAvailableUsers(res.data.filter(u => !memberIds.includes(u.id)));
-    } catch { alert('Search failed'); }
-    finally { setIsSearching(false); }
+      if (memberIds.includes(res.data.id)) {
+        alert('This person is already a member of the group.');
+      } else {
+        setAvailableUsers([res.data]);
+      }
+    } catch (err) {
+      const msg = err.response?.status === 404
+        ? 'No user found with that invite code. Please check the code and try again.'
+        : 'Lookup failed. Please try again.';
+      alert(msg);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleAddMember = async (userId) => {
@@ -470,23 +481,35 @@ export default function Dashboard() {
                 </select>
               )}
             </div>
-            <div style={s.field}>
-              <label style={s.label}>Search Member by Email</label>
+           <div style={s.field}>
+              <label style={s.label}>Member Invite Code</label>
+              <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>
+                Ask the person to share their invite code from their Profile page (e.g. RC-A3K7PQ)
+              </p>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input type="email" value={searchEmail} placeholder="user@example.com"
-                  onChange={e => setSearchEmail(e.target.value)}
+                <input type="text" value={searchEmail} placeholder="e.g. RC-A3K7PQ"
+                  onChange={e => setSearchEmail(e.target.value.toUpperCase())}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchUsers())}
-                  style={{ ...s.input, flex: 1, marginBottom: 0 }} />
-                <button onClick={searchUsers} disabled={isSearching} style={s.submitBtn}>{isSearching ? '…' : 'Search'}</button>
+                  style={{ ...s.input, flex: 1, marginBottom: 0, letterSpacing: '0.05em', fontFamily: 'monospace' }} />
+                <button onClick={searchUsers} disabled={isSearching} style={s.submitBtn}>{isSearching ? '…' : 'Look Up'}</button>
               </div>
             </div>
             {availableUsers.length > 0 && (
-              <div style={{ marginTop: '1rem', maxHeight: '250px', overflowY: 'auto' }}>
+              <div style={{ marginTop: '1rem' }}>
                 {availableUsers.map(u => (
-                  <button key={u.id} onClick={() => handleAddMember(u.id)} style={s.userResult}>
-                    <div style={{ fontWeight: '600' }}>{u.full_name}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{u.email}</div>
-                  </button>
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '0.75rem 1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      {u.avatar_url
+                        ? <img src={u.avatar_url} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                        : <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#667eea', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '1rem' }}>{u.full_name?.[0]?.toUpperCase()}</div>
+                      }
+                      <div>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{u.full_name}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>✓ User found</div>
+                      </div>
+                    </div>
+                    <button onClick={() => handleAddMember(u.id)} style={{ ...s.submitBtn, padding: '0.4rem 1rem' }}>Add</button>
+                  </div>
                 ))}
               </div>
             )}
