@@ -128,6 +128,8 @@ export default function Dashboard() {
     }
   };
 
+  // Restored: look up a user by their invite code (RC-XXXXXX), not by email.
+  // The old email-search endpoint is deprecated and no longer returns email addresses.
   const searchUsers = async () => {
     if (!searchEmail.trim()) return;
     setIsSearching(true);
@@ -481,7 +483,7 @@ export default function Dashboard() {
                 </select>
               )}
             </div>
-           <div style={s.field}>
+            <div style={s.field}>
               <label style={s.label}>Member Invite Code</label>
               <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>
                 Ask the person to share their invite code from their Profile page (e.g. RC-A3K7PQ)
