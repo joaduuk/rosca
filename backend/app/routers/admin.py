@@ -58,6 +58,10 @@ def get_platform_stats(
         Contribution.created_at >= datetime.utcnow() - timedelta(days=7)
     ).count()
     
+    new_users_this_week = db.query(User).filter(
+        User.created_at >= datetime.utcnow() - timedelta(days=7)
+    ).count()
+    
     # Users by role
     users_by_role = db.query(
         User.role, func.count(User.id)
@@ -73,6 +77,7 @@ def get_platform_stats(
         "active_groups_today": active_groups_today,
         "active_users_today": active_users_today,
         "recent_contributions_7d": recent_contributions,
+        "new_users_this_week": new_users_this_week,
         "users_by_role": [
             {"role": role, "count": count} 
             for role, count in users_by_role

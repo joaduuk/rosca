@@ -49,8 +49,8 @@ function AdminDashboard() {
           <p style={{ fontSize: '2rem' }}>{stats.total_groups ?? '—'}</p>
         </div>
         <div style={{ background: '#fbbf24', color: 'white', padding: '1.5rem', borderRadius: '8px' }}>
-          <h3>Total Contributions</h3>
-          <p style={{ fontSize: '2rem' }}>{(stats.total_contributions ?? 0).toLocaleString()}</p>
+          <h3>New Users This Week</h3>
+          <p style={{ fontSize: '2rem' }}>{stats.new_users_this_week ?? '—'}</p>
         </div>
         <div style={{ background: '#f56565', color: 'white', padding: '1.5rem', borderRadius: '8px' }}>
           <h3>Today's Active</h3>
