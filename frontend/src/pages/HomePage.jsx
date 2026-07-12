@@ -407,7 +407,7 @@ function Footer({ mobile }) {
           <div>
             <h4 style={{ color: 'white', fontSize: '0.82rem', fontWeight: '700', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '1rem' }}>Platform</h4>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {[['Home', '/'], ['Login', '/login'], ['Create Account', '/login'], ['Contact', '/contact']].map(([label, to]) => (
+              {[['Home', '/'], ['Login', '/login'], ['Create Account', '/login'],  ['Blog', '/blog'],['Contact', '/contact']].map(([label, to]) => (
                 <li key={label} style={{ marginBottom: '0.5rem' }}>
                   <Link to={to} style={{ color: '#8abba0', fontSize: '0.88rem', textDecoration: 'none' }}>{label}</Link>
                 </li>
@@ -417,7 +417,7 @@ function Footer({ mobile }) {
           <div>
             <h4 style={{ color: 'white', fontSize: '0.82rem', fontWeight: '700', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '1rem' }}>Legal</h4>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {[['Terms & Conditions', '#terms'], ['Privacy Policy', '#privacy'], ['Cookie Policy', '#privacy'], ['Blog', '']].map(([label, href]) => (
+              {[['Terms & Conditions', '#terms'], ['Privacy Policy', '#privacy'], ['Cookie Policy', '#privacy']].map(([label, href]) => (
                 <li key={label} style={{ marginBottom: '0.5rem' }}>
                   <a href={href} style={{ color: '#8abba0', fontSize: '0.88rem', textDecoration: 'none' }}>{label}</a>
                 </li>

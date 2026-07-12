@@ -17,7 +17,9 @@ import ContactPage from './pages/ContactPage';
 import GroupManage from './pages/GroupManage';
 import AboutDeveloper from './pages/AboutDeveloper';
 import UserGuidePage from './pages/UserGuidePage';
-
+import BlogPage from './pages/BlogPage';
+import BlogPostPage from './pages/BlogPostPage';
+import AdminBlog from './pages/AdminBlog';
 
 
 function AppContent() {
@@ -40,6 +42,9 @@ function AppContent() {
         <Route path="/manage" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><GroupManage /></ProtectedRoute>} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/blog/:slug" element={<BlogPostPage />} />
+        <Route path="/admin/blog" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminBlog /></ProtectedRoute>} />
         
       </Routes>
     </NotificationProvider>
