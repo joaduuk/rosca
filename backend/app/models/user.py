@@ -27,7 +27,8 @@ class User(Base):
     preferred_currency = Column(String(3), default="USD")
     timezone = Column(String, default="UTC")
     avatar_url = Column(String, nullable=True)
-    invite_code = Column(String(20), unique=True, nullable=True)
+    #invite_code = Column(String(20), unique=True, nullable=True)
+    invite_code = Column(String(20), unique=True, nullable=False)
 
     role = Column(
         SqlEnum(

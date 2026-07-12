@@ -22,7 +22,8 @@ class Membership(Base):
     # membership_status: active | waitlist | exit_requested | exited
     membership_status = Column(String, default="active", nullable=False)
     # Exit request
-    exit_requested = Column(Boolean, default=False)
+    #exit_requested = Column(Boolean, default=False)
+    exit_requested = Column(Boolean, default=False, nullable=False)
     exit_requested_at = Column(DateTime, nullable=True)
     exit_reason = Column(String, nullable=True)
     exit_approved = Column(Boolean, nullable=True)   # None=pending, True=approved, False=rejected
