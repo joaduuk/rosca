@@ -57,6 +57,7 @@ export default function Dashboard() {
   const [selectedGuarantor, setSelectedGuarantor] = useState(null);
   const [paymentData, setPaymentData] = useState(EMPTY_PAYMENT);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [addingMemberId, setAddingMemberId] = useState(null);
 
   useEffect(() => { fetchGroups(); }, []);
 
@@ -153,16 +154,22 @@ export default function Dashboard() {
   };
 
   const handleAddMember = async (userId) => {
+    setAddingMemberId(userId);
     try {
       const guarantorParam = selectedGuarantor ? `&guarantor_user_id=${selectedGuarantor.user_id}` : '';
       await API.post(`/groups/${selectedGroup.id}/members/${userId}?is_admin=false${guarantorParam}`);
-      await fetchMembers(selectedGroup.id);
+      // Refresh everything — group header stats, member list, and cycle
+      // status/payment table — so the new member appears instantly without
+      // needing a page refresh.
+      await refreshAll(selectedGroup.id);
       setShowAddMember(false);
       setSearchEmail('');
       setAvailableUsers([]);
       setSelectedGuarantor(null);
     } catch (err) {
       alert('Failed to add member: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setAddingMemberId(null);
     }
   };
 
@@ -510,7 +517,17 @@ export default function Dashboard() {
                         <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>✓ User found</div>
                       </div>
                     </div>
-                    <button onClick={() => handleAddMember(u.id)} style={{ ...s.submitBtn, padding: '0.4rem 1rem' }}>Add</button>
+                    <button
+                      onClick={() => handleAddMember(u.id)}
+                      disabled={addingMemberId === u.id}
+                      style={{
+                        ...s.submitBtn, padding: '0.4rem 1rem',
+                        opacity: addingMemberId === u.id ? 0.7 : 1,
+                        cursor: addingMemberId === u.id ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {addingMemberId === u.id ? 'Adding…' : 'Add'}
+                    </button>
                   </div>
                 ))}
               </div>
