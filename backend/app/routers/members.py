@@ -9,7 +9,7 @@ from app.api.dependencies.auth import get_current_user
 from app.models.user import User
 from app.models.group import Group
 from app.models.membership import Membership
-from app.schemas.membership import MembershipResponse
+from app.schemas.membership import MembershipResponse, OfflineMemberCreate
 from app.core.notifications import notify_member_joined
 from app.core.email import _send_email
 import os
@@ -53,21 +53,91 @@ def _notify_guarantor_assigned(guarantor: User, member: User, group_name: str):
 
 
 def _enrich_members(members, db):
-    """Add user and guarantor details to a list of memberships."""
+    """Add user and guarantor details to a list of memberships.
+    Offline members (no user_id) fall back to their stored display_name /
+    contact_email / contact_phone instead of a linked User row."""
     result = []
     for m in members:
-        user = db.query(User).filter(User.id == m.user_id).first()
+        user = db.query(User).filter(User.id == m.user_id).first() if m.user_id else None
         guarantor = db.query(User).filter(User.id == m.guarantor_id).first() if m.guarantor_id else None
         result.append(MembershipResponse(
             id=m.id, user_id=m.user_id, group_id=m.group_id,
             joined_at=m.joined_at, is_active=m.is_active, is_admin=m.is_admin,
             payout_order=m.payout_order, guarantor_id=m.guarantor_id,
-            user_email=user.email if user else None,
-            user_name=user.full_name if user else None,
+            member_status=m.member_status or ("registered" if user else "offline"),
+            user_email=user.email if user else m.contact_email,
+            user_name=user.full_name if user else m.display_name,
             guarantor_email=guarantor.email if guarantor else None,
             guarantor_name=guarantor.full_name if guarantor else None,
         ))
     return result
+
+
+@router.post("/{group_id}/members/offline", response_model=MembershipResponse, operation_id="add_offline_member_to_group")
+def add_offline_member_to_group(
+    group_id: UUID,
+    payload: OfflineMemberCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Add a member who is not registered on the app — name only, no account
+    required. This is a permanent, fully-functional way to be in a group,
+    not a pending state. The admin manages this member's contributions
+    directly, the same way they'd manage a paper ledger entry.
+
+    NOTE ON ROUTE ORDER: this must be registered BEFORE
+    POST /{group_id}/members/{user_id} below. FastAPI/Starlette matches
+    routes in registration order, and "offline" would otherwise match the
+    {user_id} pattern first and fail UUID parsing with a 422 before ever
+    reaching this function.
+    """
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    is_group_admin = db.query(Membership).filter(
+        Membership.group_id == group_id,
+        Membership.user_id == current_user.id,
+        Membership.is_admin == True
+    ).first()
+    if not (is_group_admin or current_user.role == "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized to add members")
+
+    name = (payload.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+
+    current_count = db.query(Membership).filter(
+        Membership.group_id == group_id,
+        Membership.is_active == True
+    ).count()
+    if current_count >= group.member_count:
+        raise HTTPException(status_code=400, detail="Group has reached maximum member count")
+
+    # First-come-first-served payout order; admin can reorder later.
+    new_member = Membership(
+        user_id=None,
+        group_id=group_id,
+        is_admin=False,
+        payout_order=current_count + 1,
+        guarantor_id=None,
+        member_status="offline",
+        display_name=name,
+        contact_email=(payload.email or "").strip() or None,
+        contact_phone=(payload.phone or "").strip() or None,
+    )
+    db.add(new_member)
+    db.commit()
+    db.refresh(new_member)
+
+    try:
+        notify_member_joined(db=db, group_id=group_id, group_name=group.name,
+                             new_member_name=name, new_member_user_id=None)
+    except Exception as e:
+        print(f"[NOTIFY] member_joined (offline) failed: {e}")
+
+    return _enrich_members([new_member], db)[0]
 
 
 @router.post("/{group_id}/members/{user_id}", response_model=MembershipResponse, operation_id="add_member_to_group")
@@ -206,16 +276,18 @@ def list_group_members(
     return _enrich_members(members, db)
 
 
-@router.delete("/{group_id}/members/{user_id}", operation_id="remove_member_from_group")
+@router.delete("/{group_id}/members/{membership_id}", operation_id="remove_member_from_group")
 def remove_member_from_group(
     group_id: UUID,
-    user_id: UUID,
+    membership_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """Keyed by membership_id (not user_id) so offline members — who have
+    no user_id — can be removed the same way as registered ones."""
     membership = db.query(Membership).filter(
+        Membership.id == membership_id,
         Membership.group_id == group_id,
-        Membership.user_id == user_id,
         Membership.is_active == True
     ).first()
     if not membership:
@@ -226,7 +298,8 @@ def remove_member_from_group(
         Membership.user_id == current_user.id,
         Membership.is_admin == True
     ).first()
-    if not (is_group_admin or current_user.role == "admin" or str(current_user.id) == str(user_id)):
+    is_self = membership.user_id is not None and str(current_user.id) == str(membership.user_id)
+    if not (is_group_admin or current_user.role == "admin" or is_self):
         raise HTTPException(status_code=403, detail="Not authorized")
 
     membership.is_active = False
@@ -234,14 +307,15 @@ def remove_member_from_group(
     return {"message": "Member removed successfully"}
 
 
-@router.put("/{group_id}/members/{user_id}/reorder", operation_id="reorder_member_payout")
+@router.put("/{group_id}/members/{membership_id}/reorder", operation_id="reorder_member_payout")
 def reorder_member_payout(
     group_id: UUID,
-    user_id: UUID,
+    membership_id: UUID,
     direction: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """Keyed by membership_id so offline members can be reordered too."""
     is_group_admin = db.query(Membership).filter(
         Membership.group_id == group_id,
         Membership.user_id == current_user.id,
@@ -255,7 +329,7 @@ def reorder_member_payout(
         Membership.is_active == True
     ).order_by(Membership.payout_order).all()
 
-    target = next((m for m in members if str(m.user_id) == str(user_id)), None)
+    target = next((m for m in members if str(m.id) == str(membership_id)), None)
     if not target:
         raise HTTPException(status_code=404, detail="Member not found")
 

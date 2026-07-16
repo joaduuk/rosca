@@ -506,9 +506,9 @@ def contribution_matrix(
         payout_cycle = payout_lookup.get(str(m.id))
 
         members_data.append({
-            'user_id': str(m.user_id),
-            'name': m.user.full_name if m.user else 'Unknown',
-            'email': m.user.email if m.user else '',
+            'user_id': str(m.user_id) if m.user_id else None,
+            'name': m.user.full_name if m.user else (m.display_name or 'Unknown'),
+            'email': m.user.email if m.user else (m.contact_email or ''),
             'payout_order': m.payout_order,
             'contributions': member_contribs,
             'total_paid': total_paid,

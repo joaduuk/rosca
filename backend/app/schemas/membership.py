@@ -11,6 +11,14 @@ class MembershipBase(BaseModel):
 class MembershipCreate(MembershipBase):
     user_id: UUID4
 
+class OfflineMemberCreate(BaseModel):
+    """Add a member who is not registered on the app yet. Admin manages
+    their contributions directly; there is no expectation they ever claim
+    the account — that's an optional bonus, not the point."""
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
 class MembershipUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
@@ -19,10 +27,12 @@ class MembershipUpdate(BaseModel):
 
 class MembershipResponse(MembershipBase):
     id: UUID4
-    user_id: UUID4
+    user_id: Optional[UUID4] = None
     joined_at: datetime
     is_active: bool
-    # User info fields populated by the router
+    member_status: str = "registered"
+    # User info fields populated by the router.
+    # For offline members these fall back to display_name/contact_*.
     user_email: Optional[str] = None
     user_name: Optional[str] = None
     guarantor_email: Optional[str] = None

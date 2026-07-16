@@ -101,13 +101,16 @@ def record_contribution(
     db.commit()
     db.refresh(contribution)
 
+    # Look up the paying member's user (None for offline members)
+    user = db.query(User).filter(User.id == member.user_id).first() if member.user_id else None
+
     # Fire contribution notification
     try:
         notify_contribution_paid(
             db=db,
             group_id=group_id,
             group_name=group.name,
-            member_name=user.full_name if user else "A member",
+            member_name=user.full_name if user else (member.display_name or "A member"),
             amount=float(contribution_data.amount),
             currency=contribution_data.currency,
             cycle_number=current_cycle,
@@ -130,10 +133,9 @@ def record_contribution(
     if paid_this_cycle >= total_members:
         _process_cycle_payout(group_id, current_cycle, group, db)
 
-    # Enrich response with member info
-    user = db.query(User).filter(User.id == member.user_id).first()
-    contribution.member_name = user.full_name if user else None
-    contribution.member_email = user.email if user else None
+    # Enrich response with member info (falls back to display_name for offline members)
+    contribution.member_name = user.full_name if user else member.display_name
+    contribution.member_email = user.email if user else member.contact_email
 
     return contribution
 
@@ -201,13 +203,13 @@ def _process_cycle_payout(group_id: UUID, cycle_number: int, group: Group, db: S
     db.commit()
 
     # Fire payout notification
-    recipient_user = db.query(User).filter(User.id == recipient.user_id).first()
+    recipient_user = db.query(User).filter(User.id == recipient.user_id).first() if recipient.user_id else None
     try:
         notify_payout_processed(
             db=db,
             group_id=group_id,
             group_name=group.name,
-            recipient_name=recipient_user.full_name if recipient_user else "A member",
+            recipient_name=recipient_user.full_name if recipient_user else (recipient.display_name or "A member"),
             amount=total_pool,
             currency=group.currency or "USD",
             cycle_number=cycle_number,
@@ -242,9 +244,9 @@ def list_contributions(
     result = []
     for c in contributions:
         member = db.query(Membership).filter(Membership.id == c.membership_id).first()
-        user = db.query(User).filter(User.id == member.user_id).first() if member else None
-        c.member_name = user.full_name if user else None
-        c.member_email = user.email if user else None
+        user = db.query(User).filter(User.id == member.user_id).first() if member and member.user_id else None
+        c.member_name = user.full_name if user else (member.display_name if member else None)
+        c.member_email = user.email if user else (member.contact_email if member else None)
         result.append(c)
 
     return result
@@ -281,14 +283,14 @@ def get_cycle_status(
 
     member_status = []
     for member in members:
-        user = db.query(User).filter(User.id == member.user_id).first()
+        user = db.query(User).filter(User.id == member.user_id).first() if member.user_id else None
         contribution = next((c for c in contributions if c.membership_id == member.id), None)
 
         member_status.append({
             "member_id": str(member.id),       # membership id — used for recording payment
-            "user_id": str(member.user_id),
-            "name": user.full_name if user else None,
-            "email": user.email if user else None,
+            "user_id": str(member.user_id) if member.user_id else None,
+            "name": user.full_name if user else member.display_name,
+            "email": user.email if user else member.contact_email,
             "payout_order": member.payout_order,
             "has_paid": contribution is not None and contribution.status == "paid",
             "paid_date": contribution.paid_date if contribution else None,
@@ -308,11 +310,11 @@ def get_cycle_status(
         else:
             recipient_index = (cycle_number - 1) % len(members)
         next_recipient_member = members[recipient_index]
-        recipient_user = db.query(User).filter(User.id == next_recipient_member.user_id).first()
+        recipient_user = db.query(User).filter(User.id == next_recipient_member.user_id).first() if next_recipient_member.user_id else None
         next_recipient = {
             "member_id": str(next_recipient_member.id),
-            "name": recipient_user.full_name if recipient_user else None,
-            "email": recipient_user.email if recipient_user else None
+            "name": recipient_user.full_name if recipient_user else next_recipient_member.display_name,
+            "email": recipient_user.email if recipient_user else next_recipient_member.contact_email
         }
 
     return {
@@ -350,7 +352,7 @@ def get_payout_schedule(
     result = []
     for s in schedules:
         member = db.query(Membership).filter(Membership.id == s.member_id).first()
-        user = db.query(User).filter(User.id == member.user_id).first() if member else None
+        user = db.query(User).filter(User.id == member.user_id).first() if member and member.user_id else None
 
         contributions = db.query(Contribution).filter(
             Contribution.group_id == group_id,
@@ -365,8 +367,8 @@ def get_payout_schedule(
             "status": s.status,
             "paid_date": s.paid_date,
             "recipient_id": str(s.member_id),
-            "recipient_name": user.full_name if user else None,
-            "recipient_email": user.email if user else None,
+            "recipient_name": user.full_name if user else (member.display_name if member else None),
+            "recipient_email": user.email if user else (member.contact_email if member else None),
             "contributions_count": len(contributions),
             "paid_count": len([c for c in contributions if c.status == "paid"]),
             "all_paid": all(c.status == "paid" for c in contributions) if contributions else False

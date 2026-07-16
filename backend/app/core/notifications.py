@@ -16,10 +16,13 @@ APP_NAME = os.getenv("APP_NAME", "ROSCA")
 
 
 def _get_group_member_user_ids(group_id: UUID, db: Session) -> List[str]:
-    """Return list of user_id strings for all active members of a group."""
+    """Return list of user_id strings for all active, registered members of
+    a group. Offline members (no user_id) have nothing to notify, so
+    they're excluded here."""
     memberships = db.query(Membership).filter(
         Membership.group_id == group_id,
-        Membership.is_active == True
+        Membership.is_active == True,
+        Membership.user_id.isnot(None)
     ).all()
     return [str(m.user_id) for m in memberships]
 
@@ -160,7 +163,7 @@ def notify_member_joined(
     group_id: UUID,
     group_name: str,
     new_member_name: str,
-    new_member_user_id: str,
+    new_member_user_id: Optional[str] = None,
 ):
     user_ids = _get_group_member_user_ids(group_id, db)
     title = f"👋 New Member — {group_name}"

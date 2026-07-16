@@ -431,7 +431,7 @@ def get_group_composition_admin(
 
     members_data = []
     for m in active_members:
-        user = db.query(User).filter(User.id == m.user_id).first()
+        user = db.query(User).filter(User.id == m.user_id).first() if m.user_id else None
         member_contribs = {
             c.cycle_number: {'amount': c.amount, 'paid_date': c.paid_date.isoformat() if c.paid_date else None}
             for c in contributions if str(c.membership_id) == str(m.id)
@@ -440,9 +440,9 @@ def get_group_composition_admin(
         payout_cycle = payout_lookup.get(str(m.id))
 
         members_data.append({
-            'user_id': str(m.user_id),
-            'name': user.full_name if user else 'Unknown',
-            'email': user.email if user else '',
+            'user_id': str(m.user_id) if m.user_id else None,
+            'name': user.full_name if user else (m.display_name or 'Unknown'),
+            'email': user.email if user else (m.contact_email or ''),
             'invite_code': user.invite_code if user and hasattr(user, 'invite_code') else None,
             'is_admin': m.is_admin,
             'payout_order': m.payout_order,

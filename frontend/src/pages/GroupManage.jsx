@@ -63,19 +63,19 @@ export default function GroupManage() {
 
   const isCurrentUserAdmin = members.some(m => m.user_id === user?.id && m.is_admin);
 
-  const handleRemoveMember = async (userId) => {
+  const handleRemoveMember = async (membershipId) => {
     if (!window.confirm('Remove this member?')) return;
     try {
-      await API.delete(`/groups/${selectedGroup.id}/members/${userId}`);
+      await API.delete(`/groups/${selectedGroup.id}/members/${membershipId}`);
       await fetchMembers(selectedGroup.id);
     } catch (err) {
       alert('Failed: ' + (err.response?.data?.detail || err.message));
     }
   };
 
-  const handleReorder = async (userId, direction) => {
+  const handleReorder = async (membershipId, direction) => {
     try {
-      await API.put(`/groups/${selectedGroup.id}/members/${userId}/reorder?direction=${direction}`);
+      await API.put(`/groups/${selectedGroup.id}/members/${membershipId}/reorder?direction=${direction}`);
       await fetchMembers(selectedGroup.id);
     } catch (err) {
       alert('Failed to reorder: ' + (err.response?.data?.detail || err.message));
@@ -160,16 +160,23 @@ export default function GroupManage() {
                             </span>
                             {isCurrentUserAdmin && (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <button onClick={() => handleReorder(m.user_id, 'up')} disabled={index === 0}
+                                <button onClick={() => handleReorder(m.id, 'up')} disabled={index === 0}
                                   style={{ padding: '0 5px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '3px', cursor: 'pointer', fontSize: '0.6rem', opacity: index === 0 ? 0.3 : 1 }}>▲</button>
-                                <button onClick={() => handleReorder(m.user_id, 'down')} disabled={index === sorted.length - 1}
+                                <button onClick={() => handleReorder(m.id, 'down')} disabled={index === sorted.length - 1}
                                   style={{ padding: '0 5px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '3px', cursor: 'pointer', fontSize: '0.6rem', opacity: index === sorted.length - 1 ? 0.3 : 1 }}>▼</button>
                               </div>
                             )}
                           </div>
                         </td>
-                        <td style={{ padding: '0.65rem 0.875rem', fontWeight: '500', color: '#334155' }}>{m.user_name || m.name}</td>
-                        <td style={{ padding: '0.65rem 0.875rem', color: '#64748b', fontSize: '0.82rem' }}>{m.user_email || m.email}</td>
+                        <td style={{ padding: '0.65rem 0.875rem', fontWeight: '500', color: '#334155' }}>
+                          {m.user_name || m.name}
+                          {m.member_status === 'offline' && (
+                            <span style={{ marginLeft: '0.4rem', background: '#f1f5f9', color: '#64748b', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: '600', padding: '0.1rem 0.5rem', verticalAlign: 'middle' }}>
+                              Offline
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.875rem', color: '#64748b', fontSize: '0.82rem' }}>{m.user_email || m.email || '—'}</td>
                         <td style={{ padding: '0.65rem 0.875rem', color: '#64748b' }}>{formatDate(m.joined_at)}</td>
                         <td style={{ padding: '0.65rem 0.875rem' }}>
                           <span style={{ background: m.is_admin ? '#e8f5ef' : '#f0fdf4', color: m.is_admin ? '#1a6b4a' : '#166534', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: '600', padding: '0.2rem 0.6rem' }}>
@@ -187,7 +194,7 @@ export default function GroupManage() {
                         </td>
                         <td style={{ padding: '0.65rem 0.875rem' }}>
                           {!m.is_admin && isCurrentUserAdmin && (
-                            <button onClick={() => handleRemoveMember(m.user_id)} style={{ padding: '0.25rem 0.7rem', background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600' }}>
+                            <button onClick={() => handleRemoveMember(m.id)} style={{ padding: '0.25rem 0.7rem', background: '#fee2e2', color: '#991b1b', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600' }}>
                               Remove
                             </button>
                           )}
