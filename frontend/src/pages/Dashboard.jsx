@@ -59,7 +59,7 @@ export default function Dashboard() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [addingMemberId, setAddingMemberId] = useState(null);
   const [addMemberTab, setAddMemberTab] = useState('code'); // 'code' | 'offline'
-  const [offlineForm, setOfflineForm] = useState({ name: '', email: '', phone: '' });
+  const [offlineForm, setOfflineForm] = useState({ name: '' });
   const [isAddingOffline, setIsAddingOffline] = useState(false);
 
   useEffect(() => { fetchGroups(); }, []);
@@ -183,12 +183,10 @@ export default function Dashboard() {
     try {
       await API.post(`/groups/${selectedGroup.id}/members/offline`, {
         name: offlineForm.name.trim(),
-        email: offlineForm.email.trim() || null,
-        phone: offlineForm.phone.trim() || null,
       });
       await refreshAll(selectedGroup.id);
       setShowAddMember(false);
-      setOfflineForm({ name: '', email: '', phone: '' });
+      setOfflineForm({ name: '' });
     } catch (err) {
       alert('Failed to add member: ' + (err.response?.data?.detail || err.message));
     } finally {
@@ -510,7 +508,7 @@ export default function Dashboard() {
                   boxShadow: addMemberTab === 'code' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
                 }}
               >
-                Add with Invite Code
+                Add An Existing User With Invite Code
               </button>
               <button
                 onClick={() => setAddMemberTab('offline')}
@@ -522,7 +520,7 @@ export default function Dashboard() {
                   boxShadow: addMemberTab === 'offline' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
                 }}
               >
-                Add Offline Member
+                Add A New Offline (Unregistered) Member
               </button>
             </div>
 
@@ -592,8 +590,7 @@ export default function Dashboard() {
               <form onSubmit={handleAddOfflineMember}>
                 <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 1rem 0' }}>
                   For members who aren't on RoscaApp yet. They'll show up in the payout order and
-                  you can record their contributions directly — no account needed. Email/phone are
-                  optional; if you add one, we'll send them an invite to claim the account later.
+                  you can record their contributions directly — no account needed.
                 </p>
                 <div style={s.field}>
                   <label style={s.label}>Name *</label>
@@ -601,20 +598,8 @@ export default function Dashboard() {
                     onChange={e => setOfflineForm({ ...offlineForm, name: e.target.value })}
                     placeholder="e.g. Auntie Comfort" style={s.input} />
                 </div>
-                <div style={s.field}>
-                  <label style={s.label}>Email <span style={{ fontWeight: '400', color: '#94a3b8' }}>(optional)</span></label>
-                  <input type="email" value={offlineForm.email}
-                    onChange={e => setOfflineForm({ ...offlineForm, email: e.target.value })}
-                    placeholder="optional" style={s.input} />
-                </div>
-                <div style={s.field}>
-                  <label style={s.label}>Phone <span style={{ fontWeight: '400', color: '#94a3b8' }}>(optional)</span></label>
-                  <input type="tel" value={offlineForm.phone}
-                    onChange={e => setOfflineForm({ ...offlineForm, phone: e.target.value })}
-                    placeholder="optional" style={s.input} />
-                </div>
                 <div style={s.modalActions}>
-                  <button type="button" onClick={() => { setShowAddMember(false); setOfflineForm({ name: '', email: '', phone: '' }); }} style={s.cancelBtn}>Cancel</button>
+                  <button type="button" onClick={() => { setShowAddMember(false); setOfflineForm({ name: '' }); }} style={s.cancelBtn}>Cancel</button>
                   <button type="submit" disabled={isAddingOffline || !offlineForm.name.trim()} style={{ ...s.submitBtn, opacity: isAddingOffline ? 0.7 : 1 }}>
                     {isAddingOffline ? 'Adding…' : 'Add Member'}
                   </button>
