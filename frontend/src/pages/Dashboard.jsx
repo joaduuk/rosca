@@ -58,7 +58,8 @@ export default function Dashboard() {
   const [paymentData, setPaymentData] = useState(EMPTY_PAYMENT);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [addingMemberId, setAddingMemberId] = useState(null);
-  const [addMemberTab, setAddMemberTab] = useState('code'); // 'code' | 'offline'
+  // null = prompt not yet answered, 'code' = existing account, 'offline' = no account
+  const [addMemberTab, setAddMemberTab] = useState(null);
   const [offlineForm, setOfflineForm] = useState({ name: '' });
   const [isAddingOffline, setIsAddingOffline] = useState(false);
 
@@ -166,6 +167,7 @@ export default function Dashboard() {
       // needing a page refresh.
       await refreshAll(selectedGroup.id);
       setShowAddMember(false);
+      setAddMemberTab(null);
       setSearchEmail('');
       setAvailableUsers([]);
       setSelectedGuarantor(null);
@@ -186,6 +188,7 @@ export default function Dashboard() {
       });
       await refreshAll(selectedGroup.id);
       setShowAddMember(false);
+      setAddMemberTab(null);
       setOfflineForm({ name: '' });
     } catch (err) {
       alert('Failed to add member: ' + (err.response?.data?.detail || err.message));
@@ -249,6 +252,15 @@ export default function Dashboard() {
   const isCurrentUserAdmin = members.some(m => m.user_id === user?.id && m.is_admin);
   const groupStatus = selectedGroup?.group_status || 'active';
   const statusStyle = STATUS_COLORS[groupStatus] || STATUS_COLORS.active;
+
+  const closeAddMemberModal = () => {
+    setShowAddMember(false);
+    setAddMemberTab(null);
+    setSearchEmail('');
+    setAvailableUsers([]);
+    setSelectedGuarantor(null);
+    setOfflineForm({ name: '' });
+  };
 
   if (loading) return (
     <div style={s.loadingWrap}>
@@ -318,7 +330,7 @@ export default function Dashboard() {
                     <p style={s.groupDesc}>{selectedGroup.description || 'No description'}</p>
                   </div>
                   {isCurrentUserAdmin && (
-                    <button onClick={() => { setShowAddMember(true); setSearchEmail(''); setAvailableUsers([]); }} style={s.addMemberBtn}>
+                    <button onClick={() => { setShowAddMember(true); setAddMemberTab(null); setSearchEmail(''); setAvailableUsers([]); }} style={s.addMemberBtn}>
                       + Add Member
                     </button>
                   )}
@@ -496,121 +508,124 @@ export default function Dashboard() {
           <div style={s.modal}>
             <h3 style={s.modalTitle}>Add Member to {selectedGroup?.name}</h3>
 
-            {/* Tab switch */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.1rem', background: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
-              <button
-                onClick={() => setAddMemberTab('code')}
-                style={{
-                  flex: 1, padding: '0.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer',
-                  fontWeight: '600', fontSize: '0.82rem',
-                  background: addMemberTab === 'code' ? 'white' : 'transparent',
-                  color: addMemberTab === 'code' ? '#0f172a' : '#64748b',
-                  boxShadow: addMemberTab === 'code' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-                }}
-              >
-                Add An Existing User With Invite Code
-              </button>
-              <button
-                onClick={() => setAddMemberTab('offline')}
-                style={{
-                  flex: 1, padding: '0.5rem', border: 'none', borderRadius: '6px', cursor: 'pointer',
-                  fontWeight: '600', fontSize: '0.82rem',
-                  background: addMemberTab === 'offline' ? 'white' : 'transparent',
-                  color: addMemberTab === 'offline' ? '#0f172a' : '#64748b',
-                  boxShadow: addMemberTab === 'offline' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-                }}
-              >
-                Add A New Offline (Unregistered) Member
-              </button>
-            </div>
-
-            {addMemberTab === 'code' ? (
-              <>
-                <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: '8px', padding: '0.875rem', marginBottom: '1rem' }}>
-                  <p style={{ margin: '0 0 0.5rem', fontWeight: '600', fontSize: '0.85rem', color: '#854d0e' }}>🛡️ Select a Guarantor <span style={{ fontWeight: '400' }}>(optional)</span></p>
-                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.78rem', color: '#92400e' }}>If left blank, you (admin) will be assigned as guarantor.</p>
-                  {selectedGuarantor ? (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #fde047' }}>
-                      <div><div style={{ fontWeight: '600', fontSize: '0.85rem' }}>{selectedGuarantor.user_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{selectedGuarantor.user_email}</div></div>
-                      <button onClick={() => setSelectedGuarantor(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}>✕</button>
-                    </div>
-                  ) : (
-                    <select onChange={e => { const m = members.find(m => m.user_id === e.target.value); setSelectedGuarantor(m || null); }} style={{ ...s.input, marginBottom: 0 }} defaultValue="">
-                      <option value="">— Leave blank to use admin —</option>
-                      {members.filter(m => m.user_id).map(m => <option key={m.user_id} value={m.user_id}>{m.user_name} ({m.user_email})</option>)}
-                    </select>
-                  )}
-                </div>
-                <div style={s.field}>
-                  <label style={s.label}>Member Invite Code</label>
-                  <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>
-                    Ask the person to share their invite code from their Profile page (e.g. RC-A3K7PQ)
-                  </p>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input type="text" value={searchEmail} placeholder="e.g. RC-A3K7PQ"
-                      onChange={e => setSearchEmail(e.target.value.toUpperCase())}
-                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchUsers())}
-                      style={{ ...s.input, flex: 1, marginBottom: 0, letterSpacing: '0.05em', fontFamily: 'monospace' }} />
-                    <button onClick={searchUsers} disabled={isSearching} style={s.submitBtn}>{isSearching ? '…' : 'Look Up'}</button>
-                  </div>
-                </div>
-                {availableUsers.length > 0 && (
-                  <div style={{ marginTop: '1rem' }}>
-                    {availableUsers.map(u => (
-                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '0.75rem 1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          {u.avatar_url
-                            ? <img src={u.avatar_url} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
-                            : <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#667eea', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '1rem' }}>{u.full_name?.[0]?.toUpperCase()}</div>
-                          }
-                          <div>
-                            <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{u.full_name}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>✓ User found</div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleAddMember(u.id)}
-                          disabled={addingMemberId === u.id}
-                          style={{
-                            ...s.submitBtn, padding: '0.4rem 1rem',
-                            opacity: addingMemberId === u.id ? 0.7 : 1,
-                            cursor: addingMemberId === u.id ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          {addingMemberId === u.id ? 'Adding…' : 'Add'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {availableUsers.length === 0 && searchEmail && !isSearching && <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>No users found.</p>}
-              </>
-            ) : (
-              <form onSubmit={handleAddOfflineMember}>
-                <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 1rem 0' }}>
-                  For members who aren't on RoscaApp yet. They'll show up in the payout order and
-                  you can record their contributions directly — no account needed.
+            {addMemberTab === null ? (
+              /* Step 1: Yes/No prompt — decides which form to show next */
+              <div>
+                <p style={{ fontSize: '0.9rem', color: '#334155', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                  Is this person already registered on <strong>RoscaApp.com</strong>?
                 </p>
-                <div style={s.field}>
-                  <label style={s.label}>Name *</label>
-                  <input type="text" required value={offlineForm.name}
-                    onChange={e => setOfflineForm({ ...offlineForm, name: e.target.value })}
-                    placeholder="e.g. Auntie Comfort" style={s.input} />
-                </div>
-                <div style={s.modalActions}>
-                  <button type="button" onClick={() => { setShowAddMember(false); setOfflineForm({ name: '' }); }} style={s.cancelBtn}>Cancel</button>
-                  <button type="submit" disabled={isAddingOffline || !offlineForm.name.trim()} style={{ ...s.submitBtn, opacity: isAddingOffline ? 0.7 : 1 }}>
-                    {isAddingOffline ? 'Adding…' : 'Add Member'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <button type="button" onClick={() => setAddMemberTab('code')} style={s.choiceBtnYes}>
+                    ✅ Yes, they have an account
+                  </button>
+                  <button type="button" onClick={() => setAddMemberTab('offline')} style={s.choiceBtnNo}>
+                    ➕ No, they don't have an account
                   </button>
                 </div>
-              </form>
-            )}
-
-            {addMemberTab === 'code' && (
-              <div style={s.modalActions}>
-                <button onClick={() => { setShowAddMember(false); setSearchEmail(''); setAvailableUsers([]); setSelectedGuarantor(null); }} style={s.cancelBtn}>Close</button>
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '1rem', lineHeight: 1.5 }}>
+                  Not sure? Choose <strong>No</strong> — you can still add them and start tracking their contributions right away.
+                </p>
+                <div style={s.modalActions}>
+                  <button type="button" onClick={closeAddMemberModal} style={s.cancelBtn}>Cancel</button>
+                </div>
               </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAddMemberTab(null)}
+                  style={{ background: 'none', border: 'none', color: '#1a6b4a', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', padding: 0, marginBottom: '1.1rem' }}
+                >
+                  ← Change answer
+                </button>
+
+                {addMemberTab === 'code' ? (
+                  <>
+                    <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: '8px', padding: '0.875rem', marginBottom: '1rem' }}>
+                      <p style={{ margin: '0 0 0.5rem', fontWeight: '600', fontSize: '0.85rem', color: '#854d0e' }}>🛡️ Select a Guarantor <span style={{ fontWeight: '400' }}>(optional)</span></p>
+                      <p style={{ margin: '0 0 0.75rem', fontSize: '0.78rem', color: '#92400e' }}>If left blank, you (admin) will be assigned as guarantor.</p>
+                      {selectedGuarantor ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid #fde047' }}>
+                          <div><div style={{ fontWeight: '600', fontSize: '0.85rem' }}>{selectedGuarantor.user_name}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{selectedGuarantor.user_email}</div></div>
+                          <button onClick={() => setSelectedGuarantor(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}>✕</button>
+                        </div>
+                      ) : (
+                        <select onChange={e => { const m = members.find(m => m.user_id === e.target.value); setSelectedGuarantor(m || null); }} style={{ ...s.input, marginBottom: 0 }} defaultValue="">
+                          <option value="">— Leave blank to use admin —</option>
+                          {members.filter(m => m.user_id).map(m => <option key={m.user_id} value={m.user_id}>{m.user_name} ({m.user_email})</option>)}
+                        </select>
+                      )}
+                    </div>
+                    <div style={s.field}>
+                      <label style={s.label}>Member Invite Code</label>
+                      <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>
+                        Ask the person to share their invite code from their Profile page (e.g. RC-A3K7PQ)
+                      </p>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input type="text" value={searchEmail} placeholder="e.g. RC-A3K7PQ"
+                          onChange={e => setSearchEmail(e.target.value.toUpperCase())}
+                          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchUsers())}
+                          style={{ ...s.input, flex: 1, marginBottom: 0, letterSpacing: '0.05em', fontFamily: 'monospace' }} />
+                        <button onClick={searchUsers} disabled={isSearching} style={s.submitBtn}>{isSearching ? '…' : 'Look Up'}</button>
+                      </div>
+                    </div>
+                    {availableUsers.length > 0 && (
+                      <div style={{ marginTop: '1rem' }}>
+                        {availableUsers.map(u => (
+                          <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '0.75rem 1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              {u.avatar_url
+                                ? <img src={u.avatar_url} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                                : <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#667eea', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '1rem' }}>{u.full_name?.[0]?.toUpperCase()}</div>
+                              }
+                              <div>
+                                <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{u.full_name}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#16a34a' }}>✓ User found</div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleAddMember(u.id)}
+                              disabled={addingMemberId === u.id}
+                              style={{
+                                ...s.submitBtn, padding: '0.4rem 1rem',
+                                opacity: addingMemberId === u.id ? 0.7 : 1,
+                                cursor: addingMemberId === u.id ? 'not-allowed' : 'pointer',
+                              }}
+                            >
+                              {addingMemberId === u.id ? 'Adding…' : 'Add'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {availableUsers.length === 0 && searchEmail && !isSearching && <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>No users found.</p>}
+
+                    <div style={s.modalActions}>
+                      <button onClick={closeAddMemberModal} style={s.cancelBtn}>Close</button>
+                    </div>
+                  </>
+                ) : (
+                  <form onSubmit={handleAddOfflineMember}>
+                    <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 1rem 0' }}>
+                      For members who aren't on RoscaApp yet. They'll show up in the payout order and
+                      you can record their contributions directly — no account needed.
+                    </p>
+                    <div style={s.field}>
+                      <label style={s.label}>Name *</label>
+                      <input type="text" required value={offlineForm.name}
+                        onChange={e => setOfflineForm({ ...offlineForm, name: e.target.value })}
+                        placeholder="e.g. Auntie Comfort" style={s.input} />
+                    </div>
+                    <div style={s.modalActions}>
+                      <button type="button" onClick={closeAddMemberModal} style={s.cancelBtn}>Cancel</button>
+                      <button type="submit" disabled={isAddingOffline || !offlineForm.name.trim()} style={{ ...s.submitBtn, opacity: isAddingOffline ? 0.7 : 1 }}>
+                        {isAddingOffline ? 'Adding…' : 'Add Member'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -696,6 +711,8 @@ const s = {
   modalActions: { display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' },
   cancelBtn: { padding: '0.6rem 1.25rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem' },
   submitBtn: { padding: '0.6rem 1.25rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem' },
+  choiceBtnYes: { padding: '0.9rem 1rem', background: '#f0fdf4', color: '#166534', border: '1.5px solid #bbf7d0', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', textAlign: 'left' },
+  choiceBtnNo: { padding: '0.9rem 1rem', background: '#f8fafc', color: '#334155', border: '1.5px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', textAlign: 'left' },
   userResult: { width: '100%', padding: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', textAlign: 'left', marginBottom: '0.5rem' },
   loadingWrap: { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
   spinner: { width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTop: '3px solid #1a6b4a', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
