@@ -96,12 +96,15 @@ function LoginView({ onSwitch, onForgot }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setNeedsVerification(false); setResendMsg('');
     try {
       const formData = new FormData();
       formData.append('username', email);
@@ -113,14 +116,41 @@ function LoginView({ onSwitch, onForgot }) {
       });
       window.location.href = res.data.role === 'super_admin' ? '/admin' : '/dashboard';
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed');
+      const detail = err.response?.data?.detail || 'Login failed';
+      setError(detail);
+      if (err.response?.status === 403 && detail.toLowerCase().includes('verify')) {
+        setNeedsVerification(true);
+      }
     } finally { setLoading(false); }
+  };
+
+  const handleResend = async () => {
+    setResendLoading(true); setResendMsg('');
+    try {
+      await API.post(`/auth/resend-verification?email=${encodeURIComponent(email)}`);
+      setResendMsg('A new verification link has been sent — check your inbox.');
+    } catch (err) {
+      setResendMsg(err.response?.data?.detail || 'Could not resend right now — please try again shortly.');
+    } finally { setResendLoading(false); }
   };
 
   return (
     <>
       <h2 style={styles.title}>Welcome Back</h2>
       <ErrorBanner msg={error} />
+      {needsVerification && (
+        <div style={{ marginBottom: '1rem' }}>
+          <SuccessBanner msg={resendMsg} />
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resendLoading}
+            style={{ ...styles.textLink, fontSize: '0.875rem' }}
+          >
+            {resendLoading ? 'Sending…' : 'Resend verification email'}
+          </button>
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <div style={fieldStyle}>
           <label style={labelStyle}>Email</label>
@@ -155,8 +185,8 @@ function RegisterView({ onSwitch }) {
     setLoading(true);
     try {
       await API.post('/auth/register', { email: form.email, password: form.password, full_name: form.full_name, phone: form.phone });
-      setSuccess('Account created! A welcome email has been sent. Please sign in.');
-      setTimeout(() => onSwitch('login'), 2500);
+      setSuccess("Account created! We've sent a verification link to your email — please confirm it before signing in.");
+      // No auto-redirect to login: the person needs to go check their inbox first.
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed');
     } finally { setLoading(false); }
@@ -167,23 +197,25 @@ function RegisterView({ onSwitch }) {
       <h2 style={styles.title}>Create Account</h2>
       <ErrorBanner msg={error} />
       <SuccessBanner msg={success} />
-      <form onSubmit={handleSubmit}>
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Full Name</label>
-          <input type="text" value={form.full_name} onChange={set('full_name')} required style={inputStyle} placeholder="Jane Smith" />
-        </div>
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Phone</label>
-          <input type="tel" value={form.phone} onChange={set('phone')} style={inputStyle} placeholder="+44 7700 000000" />
-        </div>
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Email</label>
-          <input type="email" value={form.email} onChange={set('email')} required style={inputStyle} placeholder="you@example.com" />
-        </div>
-        <PasswordField value={form.password} onChange={set('password')} placeholder="Min. 8 characters" />
-        <PasswordField value={form.confirmPassword} onChange={set('confirmPassword')} label="Confirm Password" />
-        <SubmitBtn loading={loading} label="Create Account" />
-      </form>
+      {!success && (
+        <form onSubmit={handleSubmit}>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Full Name</label>
+            <input type="text" value={form.full_name} onChange={set('full_name')} required style={inputStyle} placeholder="Jane Smith" />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Phone</label>
+            <input type="tel" value={form.phone} onChange={set('phone')} style={inputStyle} placeholder="+44 7700 000000" />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Email</label>
+            <input type="email" value={form.email} onChange={set('email')} required style={inputStyle} placeholder="you@example.com" />
+          </div>
+          <PasswordField value={form.password} onChange={set('password')} placeholder="Min. 8 characters" />
+          <PasswordField value={form.confirmPassword} onChange={set('confirmPassword')} label="Confirm Password" />
+          <SubmitBtn loading={loading} label="Create Account" />
+        </form>
+      )}
       <p style={styles.switchText}>
         Already have an account?{' '}
         <button type="button" onClick={() => onSwitch('login')} style={styles.textLink}>Sign In</button>

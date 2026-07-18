@@ -72,6 +72,40 @@ def send_welcome_email(to_email: str, full_name: str) -> bool:
     return _send_email(to_email, subject, html)
 
 
+def send_verification_email(to_email: str, full_name: str, token: str) -> bool:
+    verify_link = f"{FRONTEND_URL}/verify-email?token={token}"
+    subject = f"Verify your {APP_NAME} account"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 2rem;">🔄 {APP_NAME}</h1>
+      </div>
+      <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e5e7eb;">
+        <h2 style="color: #1f2937;">Hi {full_name}, one more step</h2>
+        <p style="color: #4b5563; line-height: 1.6;">
+          Please confirm this is your email address to activate your account.
+          This link expires in <strong>30 minutes</strong>.
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="{verify_link}"
+             style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 30px;
+                    border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">
+            Verify My Email
+          </a>
+        </div>
+        <p style="color: #4b5563; font-size: 0.85rem;">
+          Or copy and paste this link into your browser:<br/>
+          <a href="{verify_link}" style="color: #667eea; word-break: break-all;">{verify_link}</a>
+        </p>
+        <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 20px;">
+          If you didn't create this account, you can safely ignore this email.
+        </p>
+      </div>
+    </div>
+    """
+    return _send_email(to_email, subject, html)
+
+
 def send_password_reset_email(to_email: str, full_name: str, reset_token: str) -> bool:
     reset_link = f"{FRONTEND_URL}/reset-password?token={reset_token}"
     subject = f"{APP_NAME} — Password Reset Request"

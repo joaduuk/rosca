@@ -1,139 +1,4 @@
-# app/api/dependencies/auth.py
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List
-from sqlalchemy.orm import Session
-from jose import JWTError, jwt
-from pydantic import UUID4
-
-from app.models.user import User, UserRole
-from app.core.database import get_db
-from app.core.security import SECRET_KEY, ALGORITHM
-
-security = HTTPBearer()
-
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-) -> User:
-    """Get current user from JWT token"""
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="User not found or inactive")
-    return user
-
-
-class RoleChecker:
-    """Dependency to check if user has required platform-level roles"""
-    def __init__(self, allowed_roles: List[UserRole]):
-        self.allowed_roles = allowed_roles
-
-    def __call__(self, user: User = Depends(get_current_user)):
-        if user.role not in self.allowed_roles:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Access denied. Required roles: {[r.value for r in self.allowed_roles]}"
-            )
-        return user
-
-
-# -----------------------------
-# Platform-level role dependencies
-# -----------------------------
-require_super_admin = RoleChecker([UserRole.SUPER_ADMIN])
-require_authenticated_user = RoleChecker([UserRole.USER, UserRole.SUPER_ADMIN])
-
-
-# -----------------------------
-# Group-level permission checkers
-# -----------------------------
-def check_group_admin_or_super_admin(
-    group_id: UUID4,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> bool:
-    """Check if user is admin of the group or super admin"""
-    from app.models.group import Group
-    from app.models.membership import Membership
-
-    # Super admin has access to everything
-    if current_user.role == UserRole.SUPER_ADMIN:
-        return True
-
-    # Check if user is the group creator
-    group = db.query(Group).filter(Group.id == group_id).first()
-    if group and group.created_by == current_user.id:
-        return True
-
-    # Check if user is a group admin via membership
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_active == True,
-        Membership.is_admin == True
-    ).first()
-
-    if not membership:
-        raise HTTPException(status_code=403, detail="You don't have admin access to this group")
-
-    return True
-
-
-def check_group_member(
-    group_id: UUID4,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> bool:
-    """Check if user is a member of the group"""
-    from app.models.membership import Membership
-
-    # Super admin bypass
-    if current_user.role == UserRole.SUPER_ADMIN:
-        return True
-
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_active == True
-    ).first()
-
-    if not membership:
-        raise HTTPException(status_code=403, detail="You are not a member of this group")
-
-    return True
-
-
-def get_group_role(
-    group_id: UUID4,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> str:
-    """Get user's role in a group ('admin', 'member', or None)"""
-    from app.models.membership import Membership
-
-    if current_user.role == UserRole.SUPER_ADMIN:
-        return "admin"
-
-    membership = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.user_id == current_user.id,
-        Membership.is_active == True
-    ).first()
-
-    if not membership:
-        return None
-
-    return "admin" if membership.is_admin else "member"# backend/app/routers/auth.py
+# backend/app/routers/auth.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -144,13 +9,15 @@ import secrets
 
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_password, get_password_hash
-from app.core.email import send_welcome_email, send_password_reset_email
+from app.core.email import send_welcome_email, send_password_reset_email, send_verification_email
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 RESET_TOKEN_EXPIRE_HOURS = 1
+VERIFICATION_TOKEN_EXPIRE_MINUTES = 30
+VERIFICATION_RESEND_COOLDOWN_SECONDS = 60
 
 
 def _generate_invite_code(db) -> str:
@@ -162,6 +29,14 @@ def _generate_invite_code(db) -> str:
         exists = db.query(User).filter(User.invite_code == code).first()
         if not exists:
             return code
+
+
+def _issue_verification_token(user: User) -> str:
+    token = secrets.token_urlsafe(32)
+    user.verification_token = token
+    user.verification_token_expires = datetime.utcnow() + timedelta(minutes=VERIFICATION_TOKEN_EXPIRE_MINUTES)
+    user.verification_sent_at = datetime.utcnow()
+    return token
 
 
 @router.post("/register", response_model=UserResponse)
@@ -176,19 +51,68 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         phone=user_data.phone,
         hashed_password=get_password_hash(user_data.password),
         role=UserRole.USER.value,
-        invite_code=_generate_invite_code(db)
+        invite_code=_generate_invite_code(db),
+        is_verified=False,
+        email_valid=True,
     )
+    token = _issue_verification_token(new_user)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    # Send welcome email (non-blocking — failure won't break registration)
+    # Send verification email only — no welcome email until confirmed
     try:
-        send_welcome_email(new_user.email, new_user.full_name)
+        send_verification_email(new_user.email, new_user.full_name, token)
+    except Exception as e:
+        print(f"[EMAIL] Verification email failed: {e}")
+
+    return new_user
+
+
+@router.get("/verify-email")
+def verify_email(token: str, db: Session = Depends(get_db)):
+    """Confirm an email address using the token from the verification email."""
+    user = db.query(User).filter(User.verification_token == token).first()
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link")
+
+    if not user.verification_token_expires or datetime.utcnow() > user.verification_token_expires:
+        raise HTTPException(status_code=400, detail="Verification link has expired. Please request a new one.")
+
+    user.is_verified = True
+    user.verification_token = None
+    user.verification_token_expires = None
+    db.commit()
+
+    # Now that the address is confirmed, send the welcome email
+    try:
+        send_welcome_email(user.email, user.full_name)
     except Exception as e:
         print(f"[EMAIL] Welcome email failed: {e}")
 
-    return new_user
+    return {"message": "Email verified successfully. You can now log in."}
+
+
+@router.post("/resend-verification")
+def resend_verification(email: str, db: Session = Depends(get_db)):
+    """Request a new verification email. Always returns 200 to avoid email enumeration."""
+    user = db.query(User).filter(User.email == email).first()
+
+    if user and not user.is_verified and user.email_valid:
+        if user.verification_sent_at and \
+           (datetime.utcnow() - user.verification_sent_at).total_seconds() < VERIFICATION_RESEND_COOLDOWN_SECONDS:
+            raise HTTPException(status_code=429, detail="Please wait a bit before requesting another email.")
+
+        token = _issue_verification_token(user)
+        db.commit()
+
+        try:
+            send_verification_email(user.email, user.full_name, token)
+        except Exception as e:
+            print(f"[EMAIL] Verification resend failed: {e}")
+
+    return {"message": "If that email needs verifying, a new link has been sent."}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -199,6 +123,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     if not user.is_active:
         raise HTTPException(status_code=401, detail="Account is disabled")
+
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Please verify your email before logging in. Check your inbox or request a new link.")
 
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email, "role": user.role}
@@ -218,7 +145,7 @@ def forgot_password(email: str, db: Session = Depends(get_db)):
     """Request a password reset link. Always returns 200 to prevent email enumeration."""
     user = db.query(User).filter(User.email == email).first()
 
-    if user:
+    if user and user.email_valid:
         # Generate a secure random token
         token = secrets.token_urlsafe(32)
         user.reset_token = token

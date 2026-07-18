@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navigation } from './components/Navigation';
 import HomePage from './pages/HomePage';
 import Login from './pages/Login';
+import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
@@ -29,6 +30,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><Dashboard /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><Profile /></ProtectedRoute>} />
         <Route path="/groups/create" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><CreateGroup /></ProtectedRoute>} />
