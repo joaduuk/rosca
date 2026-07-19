@@ -98,7 +98,7 @@ export default function UserGuidePage() {
             <SLabel>Step 1</SLabel>
             <STitle>Register, Log In, and Find Your Way Around</STitle>
             <p style={{ color: '#5a5a5a', lineHeight: '1.7', marginBottom: '1.25rem' }}>
-              If you don't already have an account, register first — it only takes a minute. Once you're registered, log in to reach your dashboard, the home base for everything you'll do on RoscaApp.
+              If you don't already have an account, register first — it only takes a minute. After registering, check your inbox for a verification email and click the link before signing in for the first time. Once you're logged in, your dashboard is the home base for everything you'll do on RoscaApp.
             </p>
             <GuideStep number="i" title="What you'll see on your Dashboard" defaultOpen>
               <p style={{ marginBottom: '0.6rem' }}>Your dashboard gives you access to:</p>
@@ -126,17 +126,17 @@ export default function UserGuidePage() {
             <SLabel>Step 3</SLabel>
             <STitle>Add Members — the Most Important Step</STitle>
             <p style={{ color: '#5a5a5a', lineHeight: '1.7', marginBottom: '1.25rem' }}>
-              A group isn't a group without its members. Once it's created, open it and click <strong>+ Add Member</strong>. You'll see two ways to add someone — pick whichever fits.
+              A group isn't a group without its members. Once it's created, open it and click <strong>+ Add Member</strong>. You'll be asked one simple question first — <strong>"Is this person already registered on RoscaApp.com?"</strong> — and your answer decides which short form comes next. Not sure? Choose <strong>No</strong>; you can always add them properly once they've registered, if that ever changes.
             </p>
-            <GuideStep number="i" title="Option A: Add with invite code (member is already registered)" defaultOpen>
+            <GuideStep number="i" title="Answer Yes: Add with invite code (member is already registered)" defaultOpen>
               Every RoscaApp user has a unique invite code, shown on their Profile page, for example:
               <div style={{ background: '#f8faf9', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '0.85rem 1rem', marginTop: '0.75rem', fontFamily: 'monospace', fontSize: '0.9rem', color: '#124d35' }}>
                 Your Invite Code<br /><strong>RC-SJFUBB</strong>
               </div>
               <p style={{ marginTop: '0.75rem' }}>Ask your member for their invite code, enter it in the Add Member screen, and they'll be added to the group. You may also be asked to assign a guarantor for that member — this is entirely optional; leave it blank and you (the admin) will be assigned automatically.</p>
             </GuideStep>
-            <GuideStep number="ii" title="Option B: Add an offline member (no account needed)">
-              Not every member wants — or is able — to register their own account. In the Add Member screen, switch to the <strong>Add Offline Member</strong> tab and enter just their name. Email and phone are both optional.
+            <GuideStep number="ii" title="Answer No: Add an offline member (no account needed)">
+              Not every member wants — or is able — to register their own account. Answer <strong>No</strong> to the prompt and you'll see a single field: their name. Enter it and submit.
               <p style={{ marginTop: '0.75rem' }}>
                 That's it — they're added to the group immediately, take their place in the payout order, and you can record their contributions on their behalf, the same way you'd manage a paper ledger entry. There's no pending step and no pressure for them to ever create an account — offline is a fully complete, permanent way to be a group member.
               </p>
@@ -171,11 +171,11 @@ export default function UserGuidePage() {
               RoscaApp exists to replace manual, paper-based record keeping with automatic tracking and notifications — especially valuable once a group grows large. Even so, not everyone will have an email address, a smartphone, or want an account of their own — and that's completely fine.
             </p>
             <p style={{ color: '#5a5a5a', lineHeight: '1.7' }}>
-              This is exactly what <strong>offline members</strong> (Option B in Step 3) are for. As group admin, add them by name — nothing else required:
+              This is exactly what <strong>offline members</strong> (Answer No in Step 3) are for. As group admin, add them by name — nothing else required:
             </p>
             <ol style={{ paddingLeft: '1.2rem', color: '#5a5a5a', lineHeight: '1.8', margin: '0.75rem 0 0' }}>
-              <li>Open <strong>+ Add Member</strong> and switch to the <strong>Add Offline Member</strong> tab.</li>
-              <li>Enter their name. Email and phone are optional — add them only if you have them.</li>
+              <li>Open <strong>+ Add Member</strong> and answer <strong>No</strong> when asked if they already have an account.</li>
+              <li>Enter their name — that's the only detail needed.</li>
               <li>They're added instantly, with a full spot in the payout order and contribution tracking, same as any registered member.</li>
             </ol>
             <InfoCallout icon="✅" title="This is fully supported">
@@ -188,13 +188,14 @@ export default function UserGuidePage() {
             <h3 style={{ fontSize: '1.05rem', color: '#124d35', fontFamily: "'DM Serif Display', Georgia, serif", fontWeight: 400, marginBottom: '1rem' }}>Quick Summary</h3>
             <div>
               {[
-                ['1', 'Register or log in'],
+                ['1', 'Register, verify your email, and log in'],
                 ['2', 'Click + New Group and enter the group details'],
                 ['3', 'Click + Add Member'],
-                ['4', "Option A: enter the member's invite code (found on their Profile page)"],
-                ['5', 'Option B: switch to Add Offline Member and enter just their name — no account needed'],
-                ['6', 'Optional: assign or accept a guarantor role (invite-code members only)'],
-                ['7', 'Use Record Payment to track contributions each cycle'],
+                ['4', 'Answer whether the person already has a RoscaApp account'],
+                ['5', "Yes: enter the member's invite code (found on their Profile page)"],
+                ['6', 'No: enter just their name — no account needed'],
+                ['7', 'Optional: assign or accept a guarantor role (invite-code members only)'],
+                ['8', 'Use Record Payment to track contributions each cycle'],
               ].map(([num, text]) => (
                 <div key={num} style={{ display: 'flex', gap: '0.75rem', padding: '0.6rem 0', borderBottom: '1px solid #f0f0f0', fontSize: '0.9rem', color: '#3a3a3a' }}>
                   <span style={{ color: '#1a6b4a', fontWeight: '700', flexShrink: 0 }}>{num}.</span>
