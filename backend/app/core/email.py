@@ -51,8 +51,8 @@ def _wrap_email(inner_html: str) -> str:
     year = datetime.utcnow().year
     return f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #1a6b4a, #124d35); padding: 28px 30px; border-radius: 10px 10px 0 0; text-align: center;">
-        <span style="font-size: 1.9rem; font-weight: 400; font-family: Georgia, 'DM Serif Display', serif; letter-spacing: 0.01em; color: white;">
+      <div style="background: #ffffff; padding: 24px 30px 18px; text-align: center; border: 1px solid #e5e7eb; border-bottom: 3px solid #1a6b4a; border-radius: 10px 10px 0 0;">
+        <span style="font-size: 1.9rem; font-weight: 400; font-family: Georgia, 'DM Serif Display', serif; letter-spacing: 0.01em; color: #1a6b4a;">
           Rosca<span style="color: #f0a500;">App</span>
         </span>
       </div>
