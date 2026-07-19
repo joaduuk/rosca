@@ -8,7 +8,7 @@ from app.models.notification import Notification
 from app.models.membership import Membership
 from app.models.user import User
 from app.core.websocket_manager import ws_manager
-from app.core.email import _send_email
+from app.core.email import _send_email, _wrap_email
 import os
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -100,22 +100,16 @@ def notify_contribution_paid(
 
     _save_and_push(db, user_ids, group_id, "contribution_paid", title, message)
 
-    html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-      <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:24px;border-radius:10px 10px 0 0;text-align:center">
-        <h1 style="color:white;margin:0">🔄 {APP_NAME}</h1>
-      </div>
-      <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 10px 10px">
-        <h2 style="color:#1f2937">💰 Contribution Received</h2>
+    inner = f"""
+        <h2 style="color:#1f2937;margin-top:0">💰 Contribution Received</h2>
         <p style="color:#4b5563"><strong>{member_name}</strong> has paid their contribution for <strong>{group_name}</strong>.</p>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0">
           <p style="margin:0;color:#374151">Amount: <strong>{currency} {amount:,.2f}</strong></p>
           <p style="margin:4px 0 0;color:#374151">Cycle: <strong>#{cycle_number}</strong></p>
         </div>
-        <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">View Dashboard</a>
-      </div>
-    </div>"""
-    _send_email_to_members(db, user_ids, title, html)
+        <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#1a6b4a,#124d35);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">View Dashboard</a>
+    """
+    _send_email_to_members(db, user_ids, title, _wrap_email(inner))
 
 
 # ─────────────────────────────────────────────────────────
@@ -136,23 +130,17 @@ def notify_payout_processed(
 
     _save_and_push(db, user_ids, group_id, "payout_processed", title, message)
 
-    html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-      <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:24px;border-radius:10px 10px 0 0;text-align:center">
-        <h1 style="color:white;margin:0">🔄 {APP_NAME}</h1>
-      </div>
-      <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 10px 10px">
-        <h2 style="color:#1f2937">🎉 Payout Processed!</h2>
+    inner = f"""
+        <h2 style="color:#1f2937;margin-top:0">🎉 Payout Processed!</h2>
         <p style="color:#4b5563">Great news! The Cycle #{cycle_number} payout for <strong>{group_name}</strong> has been processed.</p>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0">
           <p style="margin:0;color:#374151">Recipient: <strong>{recipient_name}</strong></p>
           <p style="margin:4px 0 0;color:#374151">Amount: <strong>{currency} {amount:,.2f}</strong></p>
           <p style="margin:4px 0 0;color:#374151">Cycle: <strong>#{cycle_number}</strong></p>
         </div>
-        <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">View Dashboard</a>
-      </div>
-    </div>"""
-    _send_email_to_members(db, user_ids, title, html)
+        <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#1a6b4a,#124d35);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">View Dashboard</a>
+    """
+    _send_email_to_members(db, user_ids, title, _wrap_email(inner))
 
 
 # ─────────────────────────────────────────────────────────
@@ -173,18 +161,12 @@ def notify_member_joined(
 
     # Only email existing members (not the new member themselves — they get welcome email)
     existing_ids = [uid for uid in user_ids if uid != new_member_user_id]
-    html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-      <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:24px;border-radius:10px 10px 0 0;text-align:center">
-        <h1 style="color:white;margin:0">🔄 {APP_NAME}</h1>
-      </div>
-      <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 10px 10px">
-        <h2 style="color:#1f2937">👋 New Member Joined</h2>
+    inner = f"""
+        <h2 style="color:#1f2937;margin-top:0">👋 New Member Joined</h2>
         <p style="color:#4b5563"><strong>{new_member_name}</strong> has joined <strong>{group_name}</strong>.</p>
-        <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">View Group</a>
-      </div>
-    </div>"""
-    _send_email_to_members(db, existing_ids, title, html)
+        <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#1a6b4a,#124d35);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">View Group</a>
+    """
+    _send_email_to_members(db, existing_ids, title, _wrap_email(inner))
 
 
 # ─────────────────────────────────────────────────────────
@@ -207,13 +189,8 @@ def notify_payment_due(
 
     user = db.query(User).filter(User.id == user_id).first()
     if user and user.email:
-        html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-          <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:24px;border-radius:10px 10px 0 0;text-align:center">
-            <h1 style="color:white;margin:0">🔄 {APP_NAME}</h1>
-          </div>
-          <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 10px 10px">
-            <h2 style="color:#1f2937">⏰ Payment Reminder</h2>
+        inner = f"""
+            <h2 style="color:#1f2937;margin-top:0">⏰ Payment Reminder</h2>
             <p style="color:#4b5563">Hi {user.full_name},</p>
             <p style="color:#4b5563">Your contribution for <strong>{group_name}</strong> is due <strong>tomorrow</strong>.</p>
             <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0">
@@ -221,11 +198,10 @@ def notify_payment_due(
               <p style="margin:4px 0 0;color:#374151">Due Date: <strong>{due_date_str}</strong></p>
               <p style="margin:4px 0 0;color:#374151">Cycle: <strong>#{cycle_number}</strong></p>
             </div>
-            <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">Pay Now</a>
-          </div>
-        </div>"""
+            <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#1a6b4a,#124d35);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">Pay Now</a>
+        """
         try:
-            _send_email(user.email, title, html)
+            _send_email(user.email, title, _wrap_email(inner))
         except Exception as e:
             print(f"[EMAIL] Reminder failed for {user.email}: {e}")
 
@@ -254,19 +230,13 @@ def notify_group_created(
 
     _save_and_push(db, admin_ids, group_id, "group_created", title, message)
 
-    html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-      <div style="background:linear-gradient(135deg,#1a6b4a,#124d35);padding:24px;border-radius:10px 10px 0 0;text-align:center">
-        <h1 style="color:white;margin:0">{APP_NAME}</h1>
-      </div>
-      <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 10px 10px">
-        <h2 style="color:#1f2937">🆕 New Group Created</h2>
+    inner = f"""
+        <h2 style="color:#1f2937;margin-top:0">🆕 New Group Created</h2>
         <p style="color:#4b5563"><strong>{creator_name}</strong> ({creator_email}) just created a new group.</p>
         <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0">
           <p style="margin:0;color:#374151">Group: <strong>{group_name}</strong></p>
           <p style="margin:4px 0 0;color:#374151">Contribution: <strong>{currency} {contribution_amount:,.2f}</strong></p>
         </div>
         <a href="{FRONTEND_URL}/admin/groups" style="display:inline-block;background:linear-gradient(135deg,#1a6b4a,#124d35);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">View in Admin</a>
-      </div>
-    </div>"""
-    _send_email_to_members(db, admin_ids, title, html)
+    """
+    _send_email_to_members(db, admin_ids, title, _wrap_email(inner))

@@ -11,7 +11,8 @@ from app.models.group import Group
 from app.models.membership import Membership
 from app.schemas.membership import MembershipResponse, OfflineMemberCreate
 from app.core.notifications import notify_member_joined
-from app.core.email import _send_email
+# from app.core.email import _send_email
+from app.core.email import _send_email, _wrap_email
 import os
 
 router = APIRouter(prefix="/groups", tags=["Members"])
@@ -21,13 +22,8 @@ APP_NAME = os.getenv("APP_NAME", "ROSCA")
 
 def _notify_guarantor_assigned(guarantor: User, member: User, group_name: str):
     subject = f"{APP_NAME} — You are now a Guarantor"
-    html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-      <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:24px;border-radius:10px 10px 0 0;text-align:center">
-        <h1 style="color:white;margin:0">🔄 {APP_NAME}</h1>
-      </div>
-      <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-radius:0 0 10px 10px">
-        <h2 style="color:#1f2937">You have been assigned as a Guarantor</h2>
+    inner = f"""
+        <h2 style="color:#1f2937;margin-top:0">You have been assigned as a Guarantor</h2>
         <p style="color:#4b5563">Hi <strong>{guarantor.full_name}</strong>,</p>
         <p style="color:#4b5563">
           You have been assigned as the <strong>guarantor/introducer</strong> for
@@ -41,16 +37,14 @@ def _notify_guarantor_assigned(guarantor: User, member: User, group_name: str):
             <li>Your role as guarantor is recorded and visible to group admins</li>
           </ul>
         </div>
-        <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">
+        <a href="{FRONTEND_URL}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#1a6b4a,#124d35);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:8px">
           View Dashboard
         </a>
-      </div>
-    </div>"""
+    """
     try:
-        _send_email(guarantor.email, subject, html)
+        _send_email(guarantor.email, subject, _wrap_email(inner))
     except Exception as e:
         print(f"[EMAIL] Guarantor notification failed: {e}")
-
 
 def _enrich_members(members, db):
     """Add user and guarantor details to a list of memberships.
