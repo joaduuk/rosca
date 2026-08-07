@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://roscaapp.com';
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
 export default function Profile() {
@@ -71,9 +72,8 @@ export default function Profile() {
   if (!profile) return <p style={{ padding: '2rem' }}>Could not load profile.</p>;
 
   const avatarSrc = profile.avatar_url
-    ? `http://localhost:8000${profile.avatar_url}`
-    : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name)}&background=667eea&color=fff&size=128`;
-
+  ? `${API_URL}${profile.avatar_url}`
+  : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name)}&background=667eea&color=fff&size=128`;
   return (
     <div style={S.page}>
       <div style={S.container}>

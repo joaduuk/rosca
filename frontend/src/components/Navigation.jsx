@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import logo from '../assets/logo-horizontal-light.svg';
 
 const ICONS = {
   contribution_paid: '💰',
@@ -45,8 +46,8 @@ function PublicNav() {
     <>
       <nav style={{ background: 'white', borderBottom: '1px solid #e0e0e0', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
         <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', height: '64px', justifyContent: 'space-between' }}>
-          <Link to="/" style={{ fontFamily: "Georgia, serif", fontSize: '1.5rem', color: '#1a6b4a', textDecoration: 'none', flexShrink: 0 }}>
-            Rosca<span style={{ color: '#f0a500' }}>App</span>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
+            <img src={logo} alt="RoscaApp" style={{ height: '38px', width: 'auto', display: 'block' }} />
           </Link>
           {!mobile && (
             <ul style={{ display: 'flex', gap: '0.25rem', listStyle: 'none', margin: 0, padding: 0, flex: 1, marginLeft: '2rem' }}>
@@ -119,8 +120,8 @@ function AuthNav() {
     <>
     <nav style={{ background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100 }}>
       <div style={{ padding: '0 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '64px' }}>
-        <Link to="/dashboard" style={{ fontFamily: "Georgia, serif", fontSize: '1.3rem', color: '#1a6b4a', textDecoration: 'none', flexShrink: 0 }}>
-          Rosca<span style={{ color: '#f0a500' }}>App</span>
+        <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
+          <img src={logo} alt="RoscaApp" style={{ height: '34px', width: 'auto', display: 'block' }} />
         </Link>
         {!mobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flex: 1, marginLeft: '2rem' }}>

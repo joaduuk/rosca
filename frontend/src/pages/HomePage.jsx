@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import SEO from '../components/SEO';
 import { Link } from 'react-router-dom';
+import conceptImage from '../assets/concept-image.webp';
+import conceptImageMobile from '../assets/concept-image-mobile.webp';
 
 // ── Inject Google Fonts ───────────────────────────────
 const fontLink = document.createElement('link');
@@ -90,6 +92,35 @@ function Hero({ mobile }) {
         <p style={{ fontSize: '0.82rem', color: '#5a5a5a', marginTop: '1rem' }}>No credit card needed. No money passes through us. Ever.</p>
       </div>
     </div>
+  );
+}
+
+function ConceptSection({ mobile }) {
+  return (
+    <section style={{ padding: mobile ? '2.5rem 0 1rem' : '3.5rem 0 1.5rem', background: 'white' }}>
+      <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '0 1.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <SLabel>See It In Action</SLabel>
+          <STitle center>How a Rotating Circle Works</STitle>
+        </div>
+        <div style={{
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
+          border: '1px solid #e0e0e0',
+        }}>
+          <picture>
+            <source media="(max-width: 640px)" srcSet={conceptImageMobile} />
+            <img
+              src={conceptImage}
+              alt="Diagram showing how a ROSCA savings circle works: everyone contributes into a shared pot, then the pot goes to one member each round, rotating until everyone has received their turn."
+              loading="lazy"
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
+          </picture>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -464,6 +495,7 @@ export default function HomePage() {
       />
       <div style={{ fontFamily: "'DM Sans', sans-serif", color: '#1c1c1c', background: 'white' }}>
       <Hero mobile={mobile} />
+      <ConceptSection mobile={mobile} />
       <NamesStrip />
       <WhatIsRosca tablet={tablet} />
       <Features tablet={tablet} mobile={mobile} />

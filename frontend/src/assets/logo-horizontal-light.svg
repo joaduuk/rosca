@@ -1,0 +1,13 @@
+<svg width="900" height="200" viewBox="0 0 900 200" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>RoscaApp logo</title>
+<desc>RoscaApp wordmark with letter-R mark on green circle with gold accent arc</desc>
+<g>
+  <circle cx="100" cy="100" r="88" fill="none" stroke="#1a6b4a" stroke-width="16" stroke-linecap="round" stroke-dasharray="470 60"/>
+  <circle cx="100" cy="100" r="88" fill="none" stroke="#f0a500" stroke-width="16" stroke-linecap="round" stroke-dasharray="70 460" stroke-dashoffset="-400"/>
+  <circle cx="100" cy="100" r="62" fill="#1a6b4a"/>
+  <text x="100" y="122" text-anchor="middle" font-family="Georgia, 'DM Serif Display', 'Times New Roman', serif" font-size="72" font-weight="400" fill="white">R</text>
+</g>
+<text x="230" y="100" dominant-baseline="central" font-family="'DM Serif Display', Georgia, serif" font-size="118" font-weight="400">
+  <tspan fill="#1a6b4a">Rosca</tspan><tspan fill="#f0a500">App</tspan>
+</text>
+</svg>
