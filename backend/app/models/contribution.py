@@ -22,6 +22,7 @@ class Contribution(Base):
     exchange_rate = Column(Numeric(10, 4), nullable=True)
     base_currency_amount = Column(Numeric(10, 2), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    round_number = Column(Integer, nullable=False, default=1)
     
     # Relationships
     member = relationship("Membership", back_populates="contributions")

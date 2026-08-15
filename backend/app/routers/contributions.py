@@ -18,6 +18,7 @@ from app.models.group import Group
 from app.models.membership import Membership
 from app.models.contribution import Contribution
 from app.models.payout import PayoutSchedule
+from app.models.group_round import GroupRound
 from app.schemas.contribution import ContributionCreate, ContributionResponse, ContributionUpdate, PaymentStatus
 from app.core.notifications import notify_contribution_paid, notify_payout_processed
 
@@ -40,6 +41,53 @@ def verify_group_admin(
     return check_group_admin_or_super_admin(group_id, current_user, db)
 
 
+def _start_new_round(group: Group):
+    """Open the group back up for a fresh rotation."""
+    group.round_number += 1
+    group.is_locked = False
+    group.round_size = None
+    group.current_cycle = 0
+    group.cycle_decision = None
+    group.cycle_decision_note = None
+    group.group_status = "active"
+    group.is_active = True
+
+
+def _complete_round(group: Group, db: Session):
+    """Called the moment the last payout of a round is processed."""
+    round_row = db.query(GroupRound).filter(
+        GroupRound.group_id == group.id,
+        GroupRound.round_number == group.round_number
+    ).first()
+    if round_row:
+        round_row.completed_at = datetime.utcnow()
+        round_row.total_collected = group.total_collected or 0
+        round_row.total_paid_out = group.total_paid_out or 0
+
+    # Apply any exits that were approved mid-round but deferred until now
+    pending_exits = db.query(Membership).filter(
+        Membership.group_id == group.id,
+        Membership.membership_status == "exit_approved_pending"
+    ).all()
+    for m in pending_exits:
+        m.is_active = False
+        m.membership_status = "exited"
+
+    decision = group.cycle_decision
+
+    if decision == "continue":
+        _start_new_round(group)
+    elif decision == "pause":
+        group.group_status = "paused"
+        group.is_active = False
+    elif decision == "end":
+        group.group_status = "ended"
+        group.is_active = False
+    else:
+        # No decision was made ahead of time — wait for the admin
+        group.group_status = "pending_decision"
+
+
 @router.post("/contributions", response_model=ContributionResponse)
 def record_contribution(
     group_id: UUID,
@@ -54,6 +102,12 @@ def record_contribution(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
+    if group.group_status != "active":
+        raise HTTPException(
+            status_code=400,
+            detail=f"This group isn't accepting contributions right now (status: {group.group_status})"
+        )
+
     member = db.query(Membership).filter(
         Membership.id == contribution_data.membership_id,
         Membership.group_id == group_id,
@@ -64,12 +118,14 @@ def record_contribution(
         raise HTTPException(status_code=404, detail="Member not found in this group")
 
     current_cycle = contribution_data.cycle_number
+    round_number = group.round_number
 
-    # Check if already contributed this cycle
+    # Check if already contributed this cycle, scoped to the current round
     existing = db.query(Contribution).filter(
         Contribution.group_id == group_id,
         Contribution.membership_id == contribution_data.membership_id,
         Contribution.cycle_number == current_cycle,
+        Contribution.round_number == round_number,
         Contribution.status == "paid"
     ).first()
 
@@ -79,11 +135,11 @@ def record_contribution(
             detail=f"Member already contributed for cycle {current_cycle}"
         )
 
-    # Create contribution
     contribution = Contribution(
         group_id=group_id,
         membership_id=contribution_data.membership_id,
         cycle_number=current_cycle,
+        round_number=round_number,
         amount=contribution_data.amount,
         currency=contribution_data.currency,
         due_date=contribution_data.due_date,
@@ -94,17 +150,13 @@ def record_contribution(
     )
 
     db.add(contribution)
-
-    # Update group total_collected
     group.total_collected = (group.total_collected or 0) + float(contribution_data.amount)
 
     db.commit()
     db.refresh(contribution)
 
-    # Look up the paying member's user (None for offline members)
     user = db.query(User).filter(User.id == member.user_id).first() if member.user_id else None
 
-    # Fire contribution notification
     try:
         notify_contribution_paid(
             db=db,
@@ -118,22 +170,28 @@ def record_contribution(
     except Exception as e:
         print(f"[NOTIFY] contribution_paid failed: {e}")
 
-    # Check if all members have paid for this cycle → auto-process payout
-    total_members = db.query(Membership).filter(
-        Membership.group_id == group_id,
-        Membership.is_active == True
-    ).count()
+    # Determine how many people need to pay this cycle.
+    # Before the round locks, that's however many active members exist right
+    # now. Once locked, it's the frozen round_size — not a live recount —
+    # so a mid-round member change can never silently move this target.
+    if group.is_locked and group.round_size:
+        total_members = group.round_size
+    else:
+        total_members = db.query(Membership).filter(
+            Membership.group_id == group_id,
+            Membership.is_active == True
+        ).count()
 
     paid_this_cycle = db.query(Contribution).filter(
         Contribution.group_id == group_id,
         Contribution.cycle_number == current_cycle,
+        Contribution.round_number == round_number,
         Contribution.status == "paid"
     ).count()
 
     if paid_this_cycle >= total_members:
         _process_cycle_payout(group_id, current_cycle, group, db)
 
-    # Enrich response with member info (falls back to display_name for offline members)
     contribution.member_name = user.full_name if user else member.display_name
     contribution.member_email = user.email if user else member.contact_email
 
@@ -141,7 +199,7 @@ def record_contribution(
 
 
 def _process_cycle_payout(group_id: UUID, cycle_number: int, group: Group, db: Session):
-    """Internal helper: process payout when all members have paid."""
+    """Internal helper: process payout when all members have paid this cycle."""
     members = db.query(Membership).filter(
         Membership.group_id == group_id,
         Membership.is_active == True
@@ -150,20 +208,36 @@ def _process_cycle_payout(group_id: UUID, cycle_number: int, group: Group, db: S
     if not members:
         return
 
-    total_pool = float(group.contribution_amount * len(members))
+    # First payout of a fresh round: lock the group and freeze its size
+    if not group.is_locked:
+        group.is_locked = True
+        group.round_size = len(members)
+        if group.start_date is None:
+            group.start_date = datetime.utcnow()
 
-    # Determine recipient
-    if group.rosca_type == "fixed":
-        recipient_index = (cycle_number - 1) % len(members)
-    else:
-        recipient_index = (cycle_number - 1) % len(members)
+        existing_round = db.query(GroupRound).filter(
+            GroupRound.group_id == group_id,
+            GroupRound.round_number == group.round_number
+        ).first()
+        if not existing_round:
+            db.add(GroupRound(
+                group_id=group_id,
+                round_number=group.round_number,
+                round_size=len(members),
+                started_at=datetime.utcnow(),
+            ))
 
+    round_size = group.round_size or len(members)
+    round_number = group.round_number
+    total_pool = float(group.contribution_amount * round_size)
+
+    recipient_index = (cycle_number - 1) % round_size
     recipient = members[recipient_index]
 
-    # Avoid double payout for same cycle
     existing_payout = db.query(PayoutSchedule).filter(
         PayoutSchedule.group_id == group_id,
-        PayoutSchedule.cycle_number == cycle_number
+        PayoutSchedule.cycle_number == cycle_number,
+        PayoutSchedule.round_number == round_number,
     ).first()
 
     if existing_payout:
@@ -172,18 +246,17 @@ def _process_cycle_payout(group_id: UUID, cycle_number: int, group: Group, db: S
         existing_payout.member_id = recipient.id
         existing_payout.amount = total_pool
     else:
-        payout = PayoutSchedule(
+        db.add(PayoutSchedule(
             group_id=group_id,
             member_id=recipient.id,
             cycle_number=cycle_number,
+            round_number=round_number,
             amount=total_pool,
             payout_date=datetime.utcnow(),
             status="paid",
             paid_date=datetime.utcnow()
-        )
-        db.add(payout)
+        ))
 
-    # Update group stats
     group.current_cycle = cycle_number
     group.total_cycles_completed = (group.total_cycles_completed or 0) + 1
     group.total_paid_out = (group.total_paid_out or 0) + total_pool
@@ -200,9 +273,12 @@ def _process_cycle_payout(group_id: UUID, cycle_number: int, group: Group, db: S
     else:
         group.next_payout_date = datetime.utcnow() + timedelta(weeks=1)
 
+    # Has everyone in this round now been paid exactly once?
+    if cycle_number >= round_size:
+        _complete_round(group, db)
+
     db.commit()
 
-    # Fire payout notification
     recipient_user = db.query(User).filter(User.id == recipient.user_id).first() if recipient.user_id else None
     try:
         notify_payout_processed(
@@ -215,8 +291,8 @@ def _process_cycle_payout(group_id: UUID, cycle_number: int, group: Group, db: S
             cycle_number=cycle_number,
         )
     except Exception as e:
-        #print(f"[NOTIFY] payout_processed failed: {e}"), response_model=List[ContributionResponse])
         print(f"[NOTIFY] payout_processed failed: {e}")
+
 
 @router.get("/contributions", response_model=List[ContributionResponse])
 def list_contributions(
@@ -237,6 +313,7 @@ def list_contributions(
         query = query.filter(Contribution.membership_id == member_id)
 
     contributions = query.order_by(
+        Contribution.round_number.desc(),
         Contribution.cycle_number.desc(),
         Contribution.due_date
     ).all()
@@ -260,7 +337,7 @@ def get_cycle_status(
     current_user: User = Depends(get_current_user),
     _: bool = Depends(verify_group_member)
 ):
-    """Get payment status for a specific cycle"""
+    """Get payment status for a specific cycle (current round only)"""
 
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
@@ -271,14 +348,19 @@ def get_cycle_status(
         Membership.is_active == True
     ).order_by(Membership.payout_order).all()
 
+    round_size = group.round_size or len(members)
+    round_number = group.round_number
+
     contributions = db.query(Contribution).filter(
         Contribution.group_id == group_id,
-        Contribution.cycle_number == cycle_number
+        Contribution.cycle_number == cycle_number,
+        Contribution.round_number == round_number,
     ).all()
 
     payout = db.query(PayoutSchedule).filter(
         PayoutSchedule.group_id == group_id,
-        PayoutSchedule.cycle_number == cycle_number
+        PayoutSchedule.cycle_number == cycle_number,
+        PayoutSchedule.round_number == round_number,
     ).first()
 
     member_status = []
@@ -287,7 +369,7 @@ def get_cycle_status(
         contribution = next((c for c in contributions if c.membership_id == member.id), None)
 
         member_status.append({
-            "member_id": str(member.id),       # membership id — used for recording payment
+            "member_id": str(member.id),
             "user_id": str(member.user_id) if member.user_id else None,
             "name": user.full_name if user else member.display_name,
             "email": user.email if user else member.contact_email,
@@ -299,16 +381,13 @@ def get_cycle_status(
             "payment_method": contribution.payment_method if contribution else None
         })
 
-    total_paid = sum(float(c.amount) for c in contributions if c.status == "paid")
-    expected_total = float(group.contribution_amount * len(members))
     paid_count = len([c for c in contributions if c.status == "paid"])
+    total_paid = sum(float(c.amount) for c in contributions if c.status == "paid")
+    expected_total = float(group.contribution_amount * round_size)
 
     next_recipient = None
-    if paid_count == len(members) and members:
-        if group.rosca_type == "fixed":
-            recipient_index = (cycle_number - 1) % len(members)
-        else:
-            recipient_index = (cycle_number - 1) % len(members)
+    if paid_count == round_size and round_size:
+        recipient_index = (cycle_number - 1) % round_size
         next_recipient_member = members[recipient_index]
         recipient_user = db.query(User).filter(User.id == next_recipient_member.user_id).first() if next_recipient_member.user_id else None
         next_recipient = {
@@ -320,15 +399,17 @@ def get_cycle_status(
     return {
         "group_id": str(group_id),
         "group_name": group.name,
+        "round_number": round_number,
         "cycle_number": cycle_number,
         "current_group_cycle": group.current_cycle or 0,
-        "total_members": len(members),
+        "round_size": round_size,
+        "total_members": round_size,
         "paid_count": paid_count,
-        "pending_count": len(members) - paid_count,
+        "pending_count": round_size - paid_count,
         "total_paid": float(total_paid),
         "expected_total": float(expected_total),
         "remaining_amount": float(expected_total - total_paid),
-        "completion_percentage": (paid_count / len(members)) * 100 if members else 0,
+        "completion_percentage": (paid_count / round_size) * 100 if round_size else 0,
         "payout_status": payout.status if payout else "not_scheduled",
         "payout_date": payout.payout_date if payout else None,
         "next_recipient": next_recipient,
@@ -343,11 +424,11 @@ def get_payout_schedule(
     current_user: User = Depends(get_current_user),
     _: bool = Depends(verify_group_member)
 ):
-    """Get all payout schedules for a group"""
+    """Get all payout schedules for a group, across all rounds"""
 
     schedules = db.query(PayoutSchedule).filter(
         PayoutSchedule.group_id == group_id
-    ).order_by(PayoutSchedule.cycle_number).all()
+    ).order_by(PayoutSchedule.round_number, PayoutSchedule.cycle_number).all()
 
     result = []
     for s in schedules:
@@ -356,11 +437,13 @@ def get_payout_schedule(
 
         contributions = db.query(Contribution).filter(
             Contribution.group_id == group_id,
-            Contribution.cycle_number == s.cycle_number
+            Contribution.cycle_number == s.cycle_number,
+            Contribution.round_number == s.round_number,
         ).all()
 
         result.append({
             "id": str(s.id),
+            "round_number": s.round_number,
             "cycle_number": s.cycle_number,
             "payout_date": s.payout_date,
             "amount": float(s.amount),
@@ -384,7 +467,7 @@ def get_contribution_summary(
     current_user: User = Depends(get_current_user),
     _: bool = Depends(verify_group_member)
 ):
-    """Get contribution summary statistics"""
+    """Get contribution summary statistics for the current round"""
 
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
@@ -394,6 +477,7 @@ def get_contribution_summary(
         Membership.group_id == group_id,
         Membership.is_active == True
     ).all()
+    round_size = group.round_size or len(members)
 
     all_contributions = db.query(Contribution).filter(
         Contribution.group_id == group_id,
@@ -409,25 +493,27 @@ def get_contribution_summary(
     total_paid_out = sum(float(p.amount) for p in payouts)
 
     current_cycle = group.current_cycle or 0
-    # Current active cycle is the next one to be completed
     active_cycle = current_cycle + 1
-    current_cycle_contributions = [c for c in all_contributions if c.cycle_number == active_cycle]
+    current_cycle_contributions = [
+        c for c in all_contributions
+        if c.cycle_number == active_cycle and c.round_number == group.round_number
+    ]
     current_cycle_paid = len(current_cycle_contributions)
 
     contributions_by_currency = {}
     for c in all_contributions:
-        if c.currency not in contributions_by_currency:
-            contributions_by_currency[c.currency] = 0
-        contributions_by_currency[c.currency] += float(c.amount)
+        contributions_by_currency[c.currency] = contributions_by_currency.get(c.currency, 0) + float(c.amount)
 
     return {
         "group_id": str(group_id),
         "group_name": group.name,
+        "round_number": group.round_number,
+        "round_size": round_size,
         "total_members": len(members),
         "total_cycles_completed": group.total_cycles_completed or 0,
         "current_cycle": active_cycle,
         "current_cycle_paid": current_cycle_paid,
-        "current_cycle_pending": len(members) - current_cycle_paid,
+        "current_cycle_pending": round_size - current_cycle_paid,
         "total_collected": float(total_collected),
         "total_paid_out": float(total_paid_out),
         "balance": float(total_collected - total_paid_out),
@@ -458,23 +544,26 @@ def process_payout(
     if not members:
         raise HTTPException(status_code=404, detail="No active members in group")
 
-    # Check that all members have paid before allowing manual payout
+    round_size = group.round_size or len(members)
+    round_number = group.round_number
+
     paid_count = db.query(Contribution).filter(
         Contribution.group_id == group_id,
         Contribution.cycle_number == cycle_number,
+        Contribution.round_number == round_number,
         Contribution.status == "paid"
     ).count()
 
-    if paid_count < len(members):
+    if paid_count < round_size:
         raise HTTPException(
             status_code=400,
-            detail=f"Not all members have paid. {paid_count}/{len(members)} paid."
+            detail=f"Not all members have paid. {paid_count}/{round_size} paid."
         )
 
-    # Check not already paid
     existing = db.query(PayoutSchedule).filter(
         PayoutSchedule.group_id == group_id,
         PayoutSchedule.cycle_number == cycle_number,
+        PayoutSchedule.round_number == round_number,
         PayoutSchedule.status == "paid"
     ).first()
     if existing:
@@ -482,13 +571,10 @@ def process_payout(
 
     _process_cycle_payout(group_id, cycle_number, group, db)
 
-    if group.rosca_type == "fixed":
-        recipient_index = (cycle_number - 1) % len(members)
-    else:
-        recipient_index = (cycle_number - 1) % len(members)
+    recipient_index = (cycle_number - 1) % round_size
     recipient = members[recipient_index]
     recipient_user = db.query(User).filter(User.id == recipient.user_id).first()
-    total_pool = float(group.contribution_amount * len(members))
+    total_pool = float(group.contribution_amount * round_size)
 
     return {
         "message": f"Payout for cycle {cycle_number} processed successfully",

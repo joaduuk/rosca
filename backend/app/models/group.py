@@ -24,11 +24,15 @@ class Group(Base):
     # Cycle tracking
     current_cycle = Column(Integer, default=0)
     total_cycles_completed = Column(Integer, default=0)
-    start_date = Column(DateTime, default=datetime.utcnow)
+    #start_date = Column(DateTime, default=datetime.utcnow)
+    start_date = Column(DateTime, nullable=True)  # set when Round 1 actually locks, not at creation
     next_payout_date = Column(DateTime, nullable=True)
     total_collected = Column(Float, default=0)
     total_paid_out = Column(Float, default=0)
     is_active = Column(Boolean, default=True)
+    is_locked = Column(Boolean, default=False, nullable=False)
+    round_number = Column(Integer, default=1, nullable=False)
+    round_size = Column(Integer, nullable=True)
 
     # ── NEW: Cycle lifecycle ──────────────────────────────────────────────
     # Status: active | pending_decision | paused | ended
@@ -39,6 +43,7 @@ class Group(Base):
     cycle_decision_at = Column(DateTime, nullable=True)
     # Free-text reason admin can add when pausing/ending
     cycle_decision_note = Column(String, nullable=True)
+    is_archived = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     creator = relationship("User", foreign_keys=[created_by])

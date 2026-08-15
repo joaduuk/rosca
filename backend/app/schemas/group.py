@@ -69,6 +69,10 @@ class GroupResponse(GroupBase):
     group_status: str = "active"
     cycle_decision: Optional[str] = None
     cycle_decision_note: Optional[str] = None
+    is_locked: bool = False
+    round_number: int = 1
+    round_size: Optional[int] = None
+    is_archived: bool = False
 
     class Config:
         from_attributes = True

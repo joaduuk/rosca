@@ -31,6 +31,7 @@ class ContributionUpdate(BaseModel):
 class ContributionResponse(ContributionBase):
     id: UUID4
     group_id: UUID4
+    round_number: int = 1
     paid_date: Optional[datetime] = None
     created_at: datetime
     exchange_rate: Optional[float] = None

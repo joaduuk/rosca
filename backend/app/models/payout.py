@@ -21,6 +21,7 @@ class PayoutSchedule(Base):
     # Optional: store which contributions funded this payout
     contribution_ids = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    round_number = Column(Integer, nullable=False, default=1)
     
     # Relationships
     group = relationship("Group", back_populates="payout_schedules")

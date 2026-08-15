@@ -252,7 +252,7 @@ export default function GroupReports() {
                       <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '0.65rem 0.875rem', color: '#334155' }}>{formatDate(c.paid_date || c.due_date)}</td>
                         <td style={{ padding: '0.65rem 0.875rem', color: '#334155' }}>{c.member_name || '—'}</td>
-                        <td style={{ padding: '0.65rem 0.875rem', color: '#334155' }}>#{c.cycle_number}</td>
+                        <td style={{ padding: '0.65rem 0.875rem', color: '#334155' }}>R{c.round_number || 1} · #{c.cycle_number}</td>
                         <td style={{ padding: '0.65rem 0.875rem', color: '#334155', fontWeight: '600' }}>{fmt(c.amount)}</td>
                         <td style={{ padding: '0.65rem 0.875rem', color: '#334155', textTransform: 'capitalize' }}>{c.payment_method || '—'}</td>
                         <td style={{ padding: '0.65rem 0.875rem' }}>
@@ -357,7 +357,7 @@ export default function GroupReports() {
                   <tbody>
                     {payouts.map(p => (
                       <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '0.65rem 0.875rem', color: '#334155' }}>Cycle {p.cycle_number}</td>
+                        <td style={{ padding: '0.65rem 0.875rem', color: '#334155' }}>Round {p.round_number || 1} · Cycle {p.cycle_number}</td>
                         <td style={{ padding: '0.65rem 0.875rem', color: '#334155', fontWeight: '500' }}>{p.recipient_name}</td>
                         <td style={{ padding: '0.65rem 0.875rem', color: '#334155', fontWeight: '600' }}>{fmt(p.amount)}</td>
                         <td style={{ padding: '0.65rem 0.875rem', color: '#334155' }}>{formatDate(p.payout_date)}</td>

@@ -91,14 +91,17 @@ def create_group(
 def list_groups(
     skip: int = 0,
     limit: int = 100,
+    include_archived: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_authenticated_user)
 ):
-    groups = db.query(Group).join(Membership).filter(
+    query = db.query(Group).join(Membership).filter(
         Membership.user_id == current_user.id,
         Membership.is_active == True
-    ).offset(skip).limit(limit).all()
-    return groups
+    )
+    if not include_archived:
+        query = query.filter(Group.is_archived == False)
+    return query.offset(skip).limit(limit).all()
 
 
 @router.get("/{group_id}", response_model=GroupResponse)
@@ -147,8 +150,39 @@ def delete_group(
 
     group.is_active = False
     group.group_status = "ended"
+    group.is_archived = True
     db.commit()
     return {"message": "Group deactivated successfully"}
+
+
+@router.put("/{group_id}/archive")
+def archive_group(
+    group_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: bool = Depends(group_admin_dependency)
+):
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    group.is_archived = True
+    db.commit()
+    return {"message": "Group archived"}
+
+
+@router.put("/{group_id}/unarchive")
+def unarchive_group(
+    group_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: bool = Depends(group_admin_dependency)
+):
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    group.is_archived = False
+    db.commit()
+    return {"message": "Group unarchived"}
 
 
 # ── CYCLE LIFECYCLE ───────────────────────────────────────────────────────
@@ -161,11 +195,6 @@ def make_cycle_decision(
     current_user: User = Depends(get_current_user),
     _: bool = Depends(group_admin_dependency)
 ):
-    """
-    Admin decides what happens after the current cycle completes.
-    decision: continue | pause | end
-    Can be called at any time — takes effect after the next payout is processed.
-    """
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -176,14 +205,19 @@ def make_cycle_decision(
     group.cycle_decision_at = datetime.utcnow()
     group.cycle_decision_note = body.note
 
-    if decision == "continue":
-        group.group_status = "active"
-    elif decision == "pause":
-        group.group_status = "paused"
-        group.is_active = False
-    elif decision == "end":
-        group.group_status = "ended"
-        group.is_active = False
+    if group.group_status == "pending_decision":
+        # The round already finished — this decision takes effect immediately.
+        from app.routers.contributions import _start_new_round
+        if decision == "continue":
+            _start_new_round(group)
+        elif decision == "pause":
+            group.group_status = "paused"
+        elif decision == "end":
+            group.group_status = "ended"
+            group.is_active = False
+            group.is_archived = True
+    # else: round still in progress — the decision is just recorded, and
+    # will be honored automatically the moment the round completes.
 
     db.commit()
     return {
@@ -192,7 +226,6 @@ def make_cycle_decision(
         "note": group.cycle_decision_note,
     }
 
-
 @router.post("/{group_id}/resume")
 def resume_group(
     group_id: UUID,
@@ -200,20 +233,18 @@ def resume_group(
     current_user: User = Depends(get_current_user),
     _: bool = Depends(group_admin_dependency)
 ):
-    """Resume a paused group."""
+    """Resume a paused group by starting its next round."""
+    from app.routers.contributions import _start_new_round
+
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     if group.group_status != "paused":
         raise HTTPException(status_code=400, detail="Group is not paused")
 
-    group.group_status = "active"
-    group.is_active = True
-    group.cycle_decision = "continue"
-    group.cycle_decision_at = datetime.utcnow()
+    _start_new_round(group)
     db.commit()
-    return {"message": "Group resumed successfully"}
-
+    return {"message": "Group resumed successfully — new round started"}
 
 # ── EXIT REQUESTS ─────────────────────────────────────────────────────────
 
@@ -422,26 +453,26 @@ def decide_waitlist(
         raise HTTPException(status_code=404, detail="Waitlist entry not found")
 
     group = db.query(Group).filter(Group.id == group_id).first()
+
+    if body.approved and group.is_locked:
+        raise HTTPException(status_code=400, detail="Group is locked for the current round — new members can't join until it completes")
+
     active_members = db.query(Membership).filter(
         Membership.group_id == group_id,
         Membership.is_active == True,
     ).count()
 
     if body.approved:
-        if active_members >= group.member_count:
-            raise HTTPException(status_code=400, detail=f"Group is full ({group.member_count} members max)")
-
-        max_order = db.query(Membership).filter(
-            Membership.group_id == group_id,
-            Membership.is_active == True,
-        ).count()
-
         membership.is_active = True
         membership.membership_status = "active"
-        membership.payout_order = max_order + 1
+        membership.payout_order = active_members + 1
         membership.joined_at = datetime.utcnow()
         membership.waitlist_approved = True
         membership.waitlist_approved_at = datetime.utcnow()
+
+        new_total = active_members + 1
+        if new_total > group.member_count:
+            group.member_count = new_total
     else:
         membership.waitlist_approved = False
         membership.waitlist_approved_at = datetime.utcnow()

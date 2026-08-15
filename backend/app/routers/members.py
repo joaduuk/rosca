@@ -15,6 +15,8 @@ from app.core.notifications import notify_member_joined
 from app.core.email import _send_email, _wrap_email
 import os
 
+
+
 router = APIRouter(prefix="/groups", tags=["Members"])
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 APP_NAME = os.getenv("APP_NAME", "ROSCA")
@@ -90,6 +92,9 @@ def add_offline_member_to_group(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
+    if group.is_locked:
+        raise HTTPException(status_code=400, detail="Group is locked for the current round — new members can't join until it completes")
+
     is_group_admin = db.query(Membership).filter(
         Membership.group_id == group_id,
         Membership.user_id == current_user.id,
@@ -106,8 +111,7 @@ def add_offline_member_to_group(
         Membership.group_id == group_id,
         Membership.is_active == True
     ).count()
-    if current_count >= group.member_count:
-        raise HTTPException(status_code=400, detail="Group has reached maximum member count")
+    
 
     # First-come-first-served payout order; admin can reorder later.
     new_member = Membership(
@@ -124,6 +128,13 @@ def add_offline_member_to_group(
     db.add(new_member)
     db.commit()
     db.refresh(new_member)
+
+    new_total = current_count + 1
+    if new_total > group.member_count:
+        group.member_count = new_total
+        db.commit()
+
+    # Notify all group members
 
     try:
         notify_member_joined(db=db, group_id=group_id, group_name=group.name,
@@ -153,6 +164,9 @@ def add_member_to_group(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
+    if group.is_locked:
+        raise HTTPException(status_code=400, detail="Group is locked for the current round — new members can't join until it completes")
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -179,9 +193,7 @@ def add_member_to_group(
         Membership.group_id == group_id,
         Membership.is_active == True
     ).count()
-    if current_count >= group.member_count:
-        raise HTTPException(status_code=400, detail="Group has reached maximum member count")
-
+    
     # ── Resolve guarantor ──────────────────────────────────────────────────────
     # Rule: admin can always be guarantor. If none provided, default to admin.
     resolved_guarantor_id = None
@@ -230,6 +242,11 @@ def add_member_to_group(
     db.add(new_member)
     db.commit()
     db.refresh(new_member)
+    
+    new_total = current_count + 1
+    if new_total > group.member_count:
+        group.member_count = new_total
+        db.commit()
 
     # Notify all group members
     try:
@@ -268,7 +285,6 @@ def list_group_members(
     ).order_by(Membership.payout_order).all()
 
     return _enrich_members(members, db)
-
 
 @router.delete("/{group_id}/members/{membership_id}", operation_id="remove_member_from_group")
 def remove_member_from_group(

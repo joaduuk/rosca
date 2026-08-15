@@ -97,7 +97,7 @@ function CreateGroup() {
           <select name="rosca_type" value={formData.rosca_type} onChange={handleChange} style={inputStyle}>
             <option value="random">Random (Lottery)</option>
             <option value="fixed">Fixed Order</option>
-            <option value="auction">Auction</option>
+            
           </select>
         </div>
 

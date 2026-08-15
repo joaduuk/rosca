@@ -39,6 +39,7 @@ export default function Dashboard() {
   const mobile = useIsMobile();
 
   const [groups, setGroups] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [members, setMembers] = useState([]);
   const [cycleStatus, setCycleStatus] = useState(null);
@@ -77,13 +78,38 @@ export default function Dashboard() {
     ]);
   };
 
-  const fetchGroups = async () => {
+  const fetchGroups = async (includeArchived = false) => {
     try {
-      const res = await API.get('/groups/');
+      const res = await API.get(`/groups/?include_archived=${includeArchived}`);
       setGroups(res.data);
-      if (res.data.length > 0) setSelectedGroup(res.data[0]);
+      if (res.data.length > 0 && !selectedGroup) setSelectedGroup(res.data[0]);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const toggleShowArchived = () => {
+    const next = !showArchived;
+    setShowArchived(next);
+    fetchGroups(next);
+  };
+
+  const archiveGroup = async (groupId) => {
+    if (!window.confirm('Archive this group? It will be hidden from your sidebar but not deleted.')) return;
+    try {
+      await API.put(`/groups/${groupId}/archive`);
+      await fetchGroups(showArchived);
+    } catch (err) {
+      alert('Failed to archive: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  const unarchiveGroup = async (groupId) => {
+    try {
+      await API.put(`/groups/${groupId}/unarchive`);
+      await fetchGroups(showArchived);
+    } catch (err) {
+      alert('Failed to unarchive: ' + (err.response?.data?.detail || err.message));
+    }
   };
 
   const refreshSelectedGroup = async (groupId) => {
@@ -288,19 +314,34 @@ export default function Dashboard() {
               <span style={s.sidebarCount}>{groups.length}</span>
             </div>
             <button onClick={() => setShowCreateForm(true)} style={s.newGroupBtn}>+ New Group</button>
+            <button onClick={toggleShowArchived} style={s.archivedToggle}>
+              {showArchived ? '👁️ Hide Archived' : '🗄️ Show Archived'}
+            </button>
             <div style={s.groupList}>
               {groups.length === 0 ? <p style={s.emptyMsg}>No groups yet</p> : groups.map(g => (
-                <button key={g.id} onClick={() => { setSelectedGroup(g); setSidebarOpen(false); }}
-                  style={{ ...s.groupItem, ...(selectedGroup?.id === g.id ? s.groupItemActive : {}) }}>
-                  <div style={s.groupItemName}>{g.name}</div>
-                  <div style={s.groupItemSub}>{formatCurrency(g.contribution_amount, g.currency)} · {g.contribution_period}</div>
-                  <div style={s.groupItemMeta}>
-                    <span style={{ ...s.badge, background: g.is_active ? '#dcfce7' : '#fee2e2', color: g.is_active ? '#166534' : '#991b1b' }}>
-                      {g.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                    <span style={s.cycleTag}>Cycle {(g.current_cycle || 0) + 1}</span>
-                  </div>
-                </button>
+                <div key={g.id} style={{ position: 'relative' }}>
+                  <button onClick={() => { setSelectedGroup(g); setSidebarOpen(false); }}
+                    style={{
+                      ...s.groupItem,
+                      ...(selectedGroup?.id === g.id ? s.groupItemActive : {}),
+                      ...(g.is_archived ? { opacity: 0.6 } : {}),
+                    }}>
+                    <div style={s.groupItemName}>{g.name}{g.is_archived ? ' 🗄️' : ''}</div>
+                    <div style={s.groupItemSub}>{formatCurrency(g.contribution_amount, g.currency)} · {g.contribution_period}</div>
+                    <div style={s.groupItemMeta}>
+                      <span style={{ ...s.badge, background: g.is_active ? '#dcfce7' : '#fee2e2', color: g.is_active ? '#166534' : '#991b1b' }}>
+                        {g.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      <span style={s.cycleTag}>
+                        Round {g.round_number || 1} · Cycle {(g.current_cycle || 0) + 1}
+                        {g.is_locked ? ' 🔒' : ''}
+                      </span>
+                    </div>
+                  </button>
+                  {g.is_archived && (
+                    <button onClick={() => unarchiveGroup(g.id)} style={s.unarchiveBtn} title="Unarchive">↩️</button>
+                  )}
+                </div>
               ))}
             </div>
           </aside>
@@ -330,20 +371,29 @@ export default function Dashboard() {
                     <p style={s.groupDesc}>{selectedGroup.description || 'No description'}</p>
                   </div>
                   {isCurrentUserAdmin && (
-                    <button onClick={() => { setShowAddMember(true); setAddMemberTab(null); setSearchEmail(''); setAvailableUsers([]); }} style={s.addMemberBtn}>
-                      + Add Member
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={() => { setShowAddMember(true); setAddMemberTab(null); setSearchEmail(''); setAvailableUsers([]); }} style={s.addMemberBtn}>
+                        + Add Member
+                      </button>
+                      {!selectedGroup.is_archived && (
+                        <button onClick={() => archiveGroup(selectedGroup.id)} style={s.archiveBtn}>
+                          🗄️ Archive
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                <div style={s.metaGrid}>
+               <div style={s.metaGrid}>
                   {[
                     { label: 'Contribution', value: fmt(selectedGroup.contribution_amount) },
                     { label: 'Frequency', value: selectedGroup.contribution_period, cap: true },
                     { label: 'Type', value: selectedGroup.rosca_type, cap: true },
                     { label: 'Currency', value: selectedGroup.currency },
                     { label: 'Members', value: `${members.length} / ${selectedGroup.member_count}` },
+                    { label: 'Round', value: selectedGroup.round_number || 1 },
                     { label: 'Active Cycle', value: activeCycleNumber },
+                    { label: 'Locked', value: selectedGroup.is_locked ? 'Yes 🔒' : 'No' },
                   ].map(item => (
                     <div key={item.label}>
                       <div style={s.metaLabel}>{item.label}</div>
@@ -359,7 +409,7 @@ export default function Dashboard() {
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                       <h3 style={{ ...s.sectionTitle, marginBottom: 0 }}>
-                        Cycle #{cycleStatus.cycle_number} Status
+                        Round {cycleStatus.round_number} · Cycle #{cycleStatus.cycle_number} Status
                       </h3>
                       <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
                         {cycleStatus.paid_count}/{cycleStatus.total_members} paid
@@ -492,7 +542,7 @@ export default function Dashboard() {
               </div>
               <div style={s.field}><label style={s.label}>ROSCA Type</label>
                 <select value={newGroup.rosca_type} onChange={e => setNewGroup({ ...newGroup, rosca_type: e.target.value })} style={s.input}>
-                  <option value="fixed">Fixed Order</option><option value="random">Random (Lottery)</option><option value="auction">Auction</option></select></div>
+                  <option value="fixed">Fixed Order</option><option value="random">Random (Lottery)</option></select></div>
               <div style={s.modalActions}>
                 <button type="button" onClick={() => setShowCreateForm(false)} style={s.cancelBtn}>Cancel</button>
                 <button type="submit" style={s.submitBtn}>Create Group</button>
@@ -717,4 +767,8 @@ const s = {
   loadingWrap: { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
   spinner: { width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTop: '3px solid #1a6b4a', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
   emptyMsg: { color: '#94a3b8', textAlign: 'center', padding: '2rem', fontSize: '0.9rem' },
+  archivedToggle: { width: '100%', padding: '0.5rem', background: 'transparent', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem' },
+  unarchiveBtn: { position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', width: '26px', height: '26px', cursor: 'pointer', fontSize: '0.8rem' },
+  archiveBtn: { padding: '0.55rem 1.1rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', whiteSpace: 'nowrap' },
+  
 };
