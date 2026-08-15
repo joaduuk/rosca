@@ -280,7 +280,7 @@ function ResetPasswordView({ token, onSwitch }) {
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
     setLoading(true);
     try {
-      await API.post(`/auth/reset-password?token=${token}&new_password=${encodeURIComponent(password)}`);
+      await API.post('/auth/reset-password', { token, new_password: password });
       setSuccess('Password reset successfully! Redirecting to sign in…');
       setTimeout(() => onSwitch('login'), 2000);
     } catch (err) {

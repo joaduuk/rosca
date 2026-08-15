@@ -45,6 +45,7 @@ export default function Dashboard() {
   const [cycleStatus, setCycleStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showGroupDetails, setShowGroupDetails] = useState(false);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -384,23 +385,34 @@ export default function Dashboard() {
                   )}
                 </div>
 
-               <div style={s.metaGrid}>
-                  {[
-                    { label: 'Contribution', value: fmt(selectedGroup.contribution_amount) },
-                    { label: 'Frequency', value: selectedGroup.contribution_period, cap: true },
-                    { label: 'Type', value: selectedGroup.rosca_type, cap: true },
-                    { label: 'Currency', value: selectedGroup.currency },
-                    { label: 'Members', value: `${members.length} / ${selectedGroup.member_count}` },
-                    { label: 'Round', value: selectedGroup.round_number || 1 },
-                    { label: 'Active Cycle', value: activeCycleNumber },
-                    { label: 'Locked', value: selectedGroup.is_locked ? 'Yes 🔒' : 'No' },
-                  ].map(item => (
-                    <div key={item.label}>
-                      <div style={s.metaLabel}>{item.label}</div>
-                      <div style={{ ...s.metaValue, textTransform: item.cap ? 'capitalize' : 'none' }}>{item.value}</div>
-                    </div>
-                  ))}
-                </div>
+               <button type="button" onClick={() => setShowGroupDetails(o => !o)} style={s.detailsToggle}>
+                  <span>
+                    {fmt(selectedGroup.contribution_amount)} · {selectedGroup.contribution_period} · {selectedGroup.currency} · {members.length}/{selectedGroup.member_count} members · Round {selectedGroup.round_number || 1}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#1a6b4a', whiteSpace: 'nowrap' }}>
+                    {showGroupDetails ? '▲ Hide details' : '▼ Show details'}
+                  </span>
+                </button>
+
+                {showGroupDetails && (
+                  <div style={s.metaGrid}>
+                    {[
+                      { label: 'Contribution', value: fmt(selectedGroup.contribution_amount) },
+                      { label: 'Frequency', value: selectedGroup.contribution_period, cap: true },
+                      { label: 'Type', value: selectedGroup.rosca_type, cap: true },
+                      { label: 'Currency', value: selectedGroup.currency },
+                      { label: 'Members', value: `${members.length} / ${selectedGroup.member_count}` },
+                      { label: 'Round', value: selectedGroup.round_number || 1 },
+                      { label: 'Active Cycle', value: activeCycleNumber },
+                      { label: 'Locked', value: selectedGroup.is_locked ? 'Yes 🔒' : 'No' },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <div style={s.metaLabel}>{item.label}</div>
+                        <div style={{ ...s.metaValue, textTransform: item.cap ? 'capitalize' : 'none' }}>{item.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* CYCLE STATUS */}
@@ -741,6 +753,7 @@ const s = {
   groupDesc: { color: '#64748b', fontSize: '0.875rem' },
   addMemberBtn: { padding: '0.55rem 1.1rem', background: '#1a6b4a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem', whiteSpace: 'nowrap' },
   metaGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '0.75rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', marginTop: '1rem' },
+  detailsToggle: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.65rem 1rem', marginTop: '1rem', cursor: 'pointer', fontSize: '0.82rem', color: '#475569', textAlign: 'left' },
   metaLabel: { fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: '600', marginBottom: '0.2rem' },
   metaValue: { fontWeight: '700', fontSize: '0.95rem', color: '#0f172a' },
   sectionTitle: { fontSize: '1rem', fontWeight: '700', color: '#0f172a', marginBottom: '1rem' },

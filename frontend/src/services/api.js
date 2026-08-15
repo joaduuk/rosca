@@ -14,8 +14,14 @@ API.interceptors.request.use((config) => {
 });
 
 // AuthContext registers a handler here so that any expired/invalid token
-// (401 response from any API call) triggers an immediate, clean logout
-// instead of the request just failing with a confusing error.
+// (401 response from an AUTHENTICATED API call) triggers an immediate,
+// clean logout instead of the request just failing with a confusing error.
+//
+// Important: a 401 only means "session expired" if the request actually
+// carried a token (i.e. the user was logged in). A 401 from a request with
+// NO token — e.g. a failed login attempt with wrong credentials — is a
+// normal auth failure and must NOT trigger the global logout/redirect,
+// or it stomps on the error message the login form is trying to show.
 let onUnauthorized = null;
 export function setUnauthorizedHandler(handler) {
   onUnauthorized = handler;
@@ -24,7 +30,8 @@ export function setUnauthorizedHandler(handler) {
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && onUnauthorized) {
+    const hadToken = Boolean(error.config?.headers?.Authorization);
+    if (error.response?.status === 401 && hadToken && onUnauthorized) {
       onUnauthorized();
     }
     return Promise.reject(error);

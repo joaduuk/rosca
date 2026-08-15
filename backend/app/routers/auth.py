@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token, verify_password, get_password_hash
 from app.core.email import send_welcome_email, send_password_reset_email, send_verification_email
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserResponse, TokenResponse
+from app.schemas.user import UserCreate, UserResponse, TokenResponse, ResetPasswordRequest
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -162,9 +162,9 @@ def forgot_password(email: str, db: Session = Depends(get_db)):
 
 
 @router.post("/reset-password")
-def reset_password(token: str, new_password: str, db: Session = Depends(get_db)):
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     """Reset password using a valid token."""
-    user = db.query(User).filter(User.reset_token == token).first()
+    user = db.query(User).filter(User.reset_token == payload.token).first()
 
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
@@ -172,10 +172,10 @@ def reset_password(token: str, new_password: str, db: Session = Depends(get_db))
     if not user.reset_token_expires or datetime.utcnow() > user.reset_token_expires:
         raise HTTPException(status_code=400, detail="Reset token has expired")
 
-    if len(new_password) < 8:
+    if len(payload.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
-    user.hashed_password = get_password_hash(new_password)
+    user.hashed_password = get_password_hash(payload.new_password)
     user.reset_token = None
     user.reset_token_expires = None
     db.commit()

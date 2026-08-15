@@ -42,12 +42,12 @@ function AppContent() {
         <Route path="/user-guide" element={<UserGuidePage />} />
         <Route path="/about-the-developer" element={<AboutDeveloper />} />
         <Route path="/manage" element={<ProtectedRoute allowedRoles={['user', 'super_admin']}><GroupManage /></ProtectedRoute>} />
-        
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/reset-password" element={<Login />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/admin/blog" element={<ProtectedRoute allowedRoles={['super_admin']}><AdminBlog /></ProtectedRoute>} />
-        
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </NotificationProvider>
   );
