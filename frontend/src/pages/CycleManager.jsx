@@ -54,14 +54,14 @@ function CycleDecisionPanel({ group, onUpdate }) {
   return (
     <div style={{ background: '#f8faf9', border: '1px solid #e0e0e0', borderRadius: '10px', padding: '1.25rem', marginBottom: '1.25rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h4 style={{ margin: 0, color: '#124d35', fontSize: '0.95rem', fontWeight: '700' }}>⚙️ Cycle Management</h4>
+        <h4 style={{ margin: 0, color: '#124d35', fontSize: '0.95rem', fontWeight: '700' }}>⚙️ Round Management</h4>
         <StatusBadge status={group.group_status} />
       </div>
 
       {group.group_status === 'paused' ? (
         <div>
           <p style={{ fontSize: '0.875rem', color: '#5a5a5a', marginBottom: '0.75rem' }}>
-            This group is currently <strong>paused</strong>. No new cycles will start until you resume it.
+            This group is currently <strong>paused</strong>. No new round will start until you resume it.
             {group.cycle_decision_note && <span style={{ display: 'block', marginTop: '0.4rem', fontStyle: 'italic' }}>Note: {group.cycle_decision_note}</span>}
           </p>
           <button onClick={resume} disabled={loading} style={btnGreen}>
@@ -70,18 +70,18 @@ function CycleDecisionPanel({ group, onUpdate }) {
         </div>
       ) : group.group_status === 'ended' ? (
         <p style={{ fontSize: '0.875rem', color: '#5a5a5a' }}>
-          This group has ended. No further cycles will run.
+          This group has ended. No further rounds will run.
           {group.cycle_decision_note && <span style={{ display: 'block', marginTop: '0.4rem', fontStyle: 'italic' }}>Note: {group.cycle_decision_note}</span>}
         </p>
       ) : (
         <>
           <p style={{ fontSize: '0.85rem', color: '#5a5a5a', marginBottom: '1rem' }}>
-            Set what happens when the current cycle completes and the payout is processed.
+            Set what happens once every member has received their payout and the current round completes.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
             {[
-              { value: 'continue', label: '▶ Continue', desc: 'Start next cycle automatically', color: '#1a6b4a' },
-              { value: 'pause', label: '⏸ Pause', desc: 'Stop after this cycle', color: '#d97706' },
+              { value: 'continue', label: '▶ Continue', desc: 'Start next round automatically', color: '#1a6b4a' },
+              { value: 'pause', label: '⏸ Pause', desc: 'Stop after this round', color: '#d97706' },
               { value: 'end', label: '⏹ End', desc: 'Close the group permanently', color: '#dc2626' },
             ].map(opt => (
               <button
